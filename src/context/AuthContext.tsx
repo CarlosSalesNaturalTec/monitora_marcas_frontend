@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut as firebaseSignOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
 // Define o tipo para os valores do contexto
@@ -9,13 +9,15 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   idToken: string | null;
+  signOut: () => Promise<void>;
 }
 
 // Cria o Contexto com um valor padrão
 const AuthContext = createContext<AuthContextType>({ 
   user: null, 
   loading: true, 
-  idToken: null 
+  idToken: null,
+  signOut: async () => {},
 });
 
 // Define as props do provedor
@@ -46,7 +48,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => unsubscribe();
   }, []);
 
-  const value = { user, loading, idToken };
+  const signOut = async () => {
+    await firebaseSignOut(auth);
+  };
+
+  const value = { user, loading, idToken, signOut };
 
   return (
     <AuthContext.Provider value={value}>

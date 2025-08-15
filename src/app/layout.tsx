@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google"; // Importa a fonte Inter
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 // Configura a fonte Inter
 const inter = Inter({ subsets: ["latin"] });
@@ -21,7 +22,7 @@ export default function RootLayout({
       {/* Aplica a classe da fonte ao body */}
       <body className={inter.className}>
         <AuthProvider>
-          {children}
+          <AuthenticatedLayout>{children}</AuthenticatedLayout>
         </AuthProvider>
       </body>
     </html>
