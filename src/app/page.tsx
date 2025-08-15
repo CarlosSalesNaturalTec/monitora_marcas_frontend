@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import apiClient from '@/lib/api';
-import { useQuery, QueryClient, QueryClientProvider } from '@/tanstack/react-query';
+import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Função para buscar os dados do usuário no backend
 const fetchUserData = async () => {

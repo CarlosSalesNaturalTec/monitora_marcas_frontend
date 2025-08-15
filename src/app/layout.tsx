@@ -1,21 +1,14 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google"; // Importa a fonte Inter
 import "./globals.css";
-import { AuthProvider } from "@/context/AuthContext"; // Importa o AuthProvider
+import { AuthProvider } from "@/context/AuthContext";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Configura a fonte Inter
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Social Listening Platform", // Título atualizado
-  description: "Monitoramento de Marcas e Social Listening", // Descrição atualizada
+  title: "Social Listening Platform",
+  description: "Monitoramento de Marcas e Social Listening",
 };
 
 export default function RootLayout({
@@ -24,11 +17,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR"> {/* Idioma atualizado */}
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <AuthProvider> {/* Envolve a aplicação com o AuthProvider */}
+    <html lang="pt-BR">
+      {/* Aplica a classe da fonte ao body */}
+      <body className={inter.className}>
+        <AuthProvider>
           {children}
         </AuthProvider>
       </body>
