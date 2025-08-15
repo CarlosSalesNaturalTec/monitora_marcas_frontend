@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { auth } from './firebase';
 
-// TODO: Mover a URL base para uma variável de ambiente
-const API_URL = 'http://localhost:8000';
+// A URL da API será definida pela variável de ambiente em produção,
+// ou usará localhost como padrão para desenvolvimento.
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 const apiClient = axios.create({
   baseURL: API_URL,
