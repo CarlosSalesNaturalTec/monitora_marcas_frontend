@@ -3,8 +3,6 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { auth } from '@/lib/firebase';
-import { Button } from '@/components/ui/button';
 import apiClient from '@/lib/api';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -30,11 +28,6 @@ function Dashboard() {
     }
   }, [user, loading, router]);
 
-  const handleLogout = async () => {
-    await auth.signOut();
-    router.push('/login');
-  };
-
   if (loading || isUserQueryLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -51,9 +44,8 @@ function Dashboard() {
 
   return (
     <div className="container mx-auto p-4">
-      <header className="flex justify-between items-center mb-8">
+      <header className="mb-8">
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <Button onClick={handleLogout} variant="outline">Logout</Button>
       </header>
       <main>
         <h2 className="text-xl mb-4">Bem-vindo, {user.email}!</h2>

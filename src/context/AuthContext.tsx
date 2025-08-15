@@ -9,6 +9,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   idToken: string | null;
+  userRole: string | null; // Adiciona o role do usuário
   signOut: () => Promise<void>;
 }
 
@@ -17,6 +18,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null, 
   loading: true, 
   idToken: null,
+  userRole: null,
   signOut: async () => {},
 });
 
@@ -30,16 +32,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [idToken, setIdToken] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUser(user);
-        const token = await user.getIdToken();
-        setIdToken(token);
+        const tokenResult = await user.getIdTokenResult();
+        setIdToken(tokenResult.token);
+        
+        // Busca o 'role' diretamente das custom claims do token
+        const userRoleFromClaims = tokenResult.claims.role as string | undefined;
+        setUserRole(userRoleFromClaims || null);
+
       } else {
         setUser(null);
         setIdToken(null);
+        setUserRole(null);
       }
       setLoading(false);
     });
@@ -50,9 +59,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signOut = async () => {
     await firebaseSignOut(auth);
+    setUserRole(null); // Limpa o role no logout
   };
 
-  const value = { user, loading, idToken, signOut };
+  const value = { user, loading, idToken, userRole, signOut };
 
   return (
     <AuthContext.Provider value={value}>

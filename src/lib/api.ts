@@ -14,7 +14,8 @@ apiClient.interceptors.request.use(
   async (config) => {
     const user = auth.currentUser;
     if (user) {
-      const token = await user.getIdToken();
+      // Força a atualização do token se ele estiver expirado
+      const token = await user.getIdToken(true);
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -25,3 +26,76 @@ apiClient.interceptors.request.use(
 );
 
 export default apiClient;
+
+// --- Tipos para o CRUD de Usuários ---
+
+export interface User {
+  uid: string;
+  email: string;
+  role: 'ADM' | 'OPERADOR' | null;
+  disabled: boolean;
+}
+
+export interface UserCreateData {
+  email: string;
+  password?: string; // Opcional no frontend, obrigatório no backend
+  role: 'ADM' | 'OPERADOR';
+}
+
+export interface UserUpdateData {
+    role: 'ADM' | 'OPERADOR';
+}
+
+
+// --- Funções da API ---
+
+export const getMyProfile = async () => {
+  try {
+    const response = await apiClient.get('/users/me');
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao buscar perfil do usuário:", error);
+    throw error;
+  }
+};
+
+// --- Funções do CRUD de Usuários (Apenas para Admins) ---
+
+export const listUsers = async (): Promise<User[]> => {
+    try {
+        const response = await apiClient.get('/users');
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao listar usuários:", error);
+        throw error;
+    }
+};
+
+export const createUser = async (userData: UserCreateData): Promise<User> => {
+    try {
+        const response = await apiClient.post('/users', userData);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao criar usuário:", error);
+        throw error;
+    }
+};
+
+export const updateUserRole = async (uid: string, userData: UserUpdateData): Promise<User> => {
+    try {
+        const response = await apiClient.put(`/users/${uid}`, userData);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao atualizar usuário:", error);
+        throw error;
+    }
+};
+
+export const deleteUser = async (uid: string): Promise<void> => {
+    try {
+        await apiClient.delete(`/users/${uid}`);
+    } catch (error) {
+        console.error("Erro ao deletar usuário:", error);
+        throw error;
+    }
+};
