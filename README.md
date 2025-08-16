@@ -1,9 +1,20 @@
 # social-listening-platform
 
-## Arquitetura do Sistema
+**Nota sobre o Ambiente de Desenvolvimento**
 
-Este documento detalha a arquitetura da plataforma de Social Listening, composta por um frontend em Next.js e um backend em FastAPI, com autenticação gerenciada pelo Firebase.
+Este projeto está sendo desenvolvido em um ambiente **Windows**. Todos os comandos de terminal executados através do Gemini CLI devem ser compatíveis com o Command Prompt (CMD).
 
+## Arquitetura do Sistema 
+
+### / Stack de Tecnologia
+
+Este documento detalha a arquitetura da plataforma de Social Listening.
+
+- **Frontend:** Next.js (React/TypeScript) com Tailwind CSS e shadcn/ui.
+- **Backend:** FastAPI (Python).
+- **Autenticação e Banco de Dados:** Firebase (Auth e Firestore).
+- **Gerenciamento de Permissões (Admin)** O sistema utiliza **Custom Claims** do Firebase para controle de acesso baseado em função (RBAC).
+- Para que um usuário tenha privilégios administrativos (ex: editar as configurações da plataforma na página `/profile`), ele **deve** possuir a claim `{'role': 'ADM'}`.
 ---
 
 ### 1. Frontend (Next.js)
@@ -147,6 +158,10 @@ const AdminButton = () => {
 ### 5. Funcionalidades da Interface (Frontend)
 
 - **Cadastro e Login de Usuários**: Acesso seguro à plataforma.
+- **Sistema/Configurações (rota `/profile`)**: Página para o gerenciamento centralizado dos termos de pesquisa de toda a plataforma.
+  - Permite o CRUD (Criar, Ler, Atualizar, Deletar) de termos principais, sinônimos e termos a excluir.
+  - A interface é dividida em abas para "Marca" e "Concorrentes".
+  - O acesso para edição é restrito a usuários com a permissão `ADM`. Usuários não-administradores visualizam os termos em modo somente leitura.
 
 ---
 
@@ -222,6 +237,7 @@ Para executar o servidor backend localmente, siga estes passos a partir do diret
 4.  **Configure as variáveis de ambiente:**
     - Crie uma cópia do arquivo `.env.example` e renomeie para `.env`.
     - Neste novo arquivo `.env`, defina a variável `GOOGLE_APPLICATION_CREDENTIALS` com o caminho para o seu arquivo de credenciais JSON do Firebase.
+    - **Importante:** A conta de serviço (Service Account) associada a este arquivo de credencial **deve** ter a permissão (role) `Usuário do Cloud Datastore` no Google Cloud (IAM) para que o backend consiga acessar o Firestore.
     ```
     GOOGLE_APPLICATION_CREDENTIALS="caminho/para/seu/arquivo.json"
     ```
@@ -253,6 +269,3 @@ Abra [http://localhost:3000](http://localhost:3000) no seu navegador para ver o 
 Você pode começar a editar a página modificando `app/page.tsx`. A página é atualizada automaticamente conforme você edita o arquivo.
 
 Este projeto usa [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) para otimizar e carregar automaticamente a [Geist](https://vercel.com/font), uma nova família de fontes da Vercel.
-
----
-
