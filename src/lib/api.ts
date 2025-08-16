@@ -51,6 +51,19 @@ export interface AdminUserDeleteData {
   email: string;
 }
 
+// --- Tipos para os Termos de Pesquisa ---
+
+export interface TermGroup {
+  main_terms: string[];
+  synonyms: string[];
+  excluded_terms: string[];
+}
+
+export interface SearchTerms {
+  brand: TermGroup;
+  competitors: TermGroup;
+}
+
 // --- Funções da API ---
 
 export const getMyProfile = async (): Promise<UserProfile> => {
@@ -59,6 +72,28 @@ export const getMyProfile = async (): Promise<UserProfile> => {
     return response.data;
   } catch (error) {
     console.error("Erro ao buscar perfil do usuário:", error);
+    throw error;
+  }
+};
+
+// --- Funções de Gerenciamento de Termos de Pesquisa ---
+
+export const getSearchTerms = async (): Promise<SearchTerms> => {
+  try {
+    const response = await apiClient.get('/terms');
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao buscar termos de pesquisa:", error);
+    throw error;
+  }
+};
+
+export const saveSearchTerms = async (terms: SearchTerms): Promise<SearchTerms> => {
+  try {
+    const response = await apiClient.post('/terms', terms);
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao salvar termos de pesquisa:", error);
     throw error;
   }
 };

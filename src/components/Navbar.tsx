@@ -15,13 +15,18 @@ import {
 import { ChevronDown } from "lucide-react";
 
 export function Navbar() {
-  const { userRole, signOut } = useAuth();
+  const { user, signOut } = useAuth(); // Alterado: usa 'user' em vez de 'userRole'
   const router = useRouter();
 
   const handleLogout = async () => {
     await signOut();
     router.push("/login");
   };
+
+  // A Navbar só deve ser renderizada se o usuário existir
+  if (!user) {
+    return null;
+  }
 
   return (
     <nav className="bg-white shadow-md">
@@ -32,11 +37,11 @@ export function Navbar() {
           </Link>
           
           <div className="flex items-center space-x-4">
-            {userRole && (
-              <Button asChild variant="ghost">
-                <Link href="/dashboard">Dashboard</Link>
-              </Button>
-            )}
+            {/* Acesso ao Dashboard para qualquer usuário logado */}
+            <Button asChild variant="ghost">
+              <Link href="/dashboard">Dashboard</Link>
+            </Button>
+            
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost">
@@ -44,11 +49,18 @@ export function Navbar() {
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">                
-                {userRole === 'ADM' && (
-                  <DropdownMenuItem asChild>
-                    <Link href="/users">Usuários</Link>
-                  </DropdownMenuItem>
+              <DropdownMenuContent align="end">
+                {/* Links específicos para ADM */}
+                {user.role === 'ADM' && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile">Configurações</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/users">Usuários</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
                 )}
                 <DropdownMenuItem onClick={handleLogout}>
                   Sair
