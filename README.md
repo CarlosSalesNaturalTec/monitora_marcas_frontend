@@ -60,11 +60,101 @@ O backend é uma API RESTful de alta performance construída com FastAPI.
 
 ---
 
-## Estratégia de Deploy (Google Cloud Run)
+### 4. Gerenciamento de Permissões com Custom Claims
+
+Para controlar o acesso a funcionalidades específicas, como painéis administrativos, a plataforma utiliza **Custom Claims** do Firebase Authentication. Isso permite atribuir papéis (como `ADM`) a usuários específicos, implementando um controle de acesso baseado em função (RBAC).
+
+#### 4.1. Definição dos Claims (Backend)
+
+Custom claims são definidos no backend usando o SDK `firebase-admin`, pois é uma operação privilegiada que não deve ser exposta ao cliente. Um script de administração ou um endpoint de API protegido pode ser usado para atribuir um papel a um usuário.
+
+**Exemplo de script para definir um usuário como ADM:**
+```python
+# Em um script como backend/create_admin_user.py
+from firebase_admin import auth
+
+# UID do usuário que será tornado administrador
+user_uid = "UID_DO_USUARIO_A_SER_ADM" 
+
+# Define o custom claim 'role' como 'ADM'
+auth.set_custom_user_claims(user_uid, {'role': 'ADM'})
+
+print(f"Usuário {user_uid} agora é um administrador.")
+```
+
+#### 4.2. Validação de Rotas Protegidas (Backend)
+
+Endpoints da API que executam operações sensíveis devem ser protegidos para aceitar apenas usuários com o papel `ADM`. Isso é feito criando uma nova dependência no FastAPI que verifica o `role` presente nos claims do token.
+
+**Exemplo de dependência para rotas de ADM:**
+```python
+# Em backend/auth.py
+from fastapi import Depends, HTTPException, status
+from firebase_admin import auth
+
+# ... (código existente)
+
+async def get_current_admin_user(decoded_token: dict = Depends(get_current_user)):
+    """
+    Valida o token e verifica se o usuário tem o papel 'ADM'.
+    """
+    if decoded_token.get("role") != "ADM":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso negado. Requer privilégios de administrador."
+        )
+    return decoded_token
+```
+
+#### 4.3. Controle de Acesso na Interface (Frontend)
+
+No frontend, a aplicação lê os claims do token do usuário logado para exibir ou ocultar componentes da interface, como links de navegação para painéis de administração ou botões de ação.
+
+1.  **Obter Claims**: O SDK cliente do Firebase permite forçar a atualização do token para obter os claims mais recentes.
+2.  **Renderização Condicional**: O código React/Next.js usa os claims para decidir o que renderizar.
+
+**Exemplo de verificação de claims no Frontend:**
+```typescript
+// Em um componente ou hook do React
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/context/AuthContext'; // Exemplo de uso de um Auth Context
+
+const AdminButton = () => {
+  const { user } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      user.getIdTokenResult(true) // true força a atualização do token
+        .then((idTokenResult) => {
+          if (idTokenResult.claims.role === 'ADM') {
+            setIsAdmin(true);
+          }
+        });
+    }
+  }, [user]);
+
+  if (!isAdmin) {
+    return null; // Não renderiza o botão se não for ADM
+  }
+
+  return <button>Painel do Administrador</button>;
+};
+```
+
+---
+
+### 5. Funcionalidades da Interface (Frontend)
+
+- **Cadastro e Login de Usuários**: Acesso seguro à plataforma.
+
+---
+
+### 6. Estratégia de Deploy (Google Cloud Run)
 
 Esta seção detalha os passos para realizar o deploy das aplicações de frontend e backend no Google Cloud Run.
 
-### Backend (FastAPI)
+#### 6.1. Backend (FastAPI)
 
 O deploy do backend é realizado em dois passos principais:
 
@@ -80,7 +170,7 @@ O deploy do backend é realizado em dois passos principais:
     gcloud run deploy social-listening-backend --image gcr.io/[PROJECT_ID]/social-listening-backend --platform managed --region us-central1 --allow-unauthenticated --port 8000
     ```
 
-### Frontend (Next.js)
+#### 6.2. Frontend (Next.js)
 
 O deploy do frontend requer a passagem de variáveis de ambiente para o processo de build do Next.js.
 
@@ -101,32 +191,9 @@ O deploy do frontend requer a passagem de variáveis de ambiente para o processo
     ```bash
     gcloud run deploy social-listening-frontend --image gcr.io/[PROJECT_ID]/social-listening-frontend --platform managed --region us-central1 --allow-unauthenticated
     ```
-
 ---
 
-## Front End - Executando Localmente 
-
-Primeiro, execute o servidor de desenvolvimento:
-
-```bash
-npm run dev
-# ou
-yarn dev
-# ou
-pnpm dev
-# ou
-bun dev
-```
-
-Abra [http://localhost:3000](http://localhost:3000) no seu navegador para ver o resultado.
-
-Você pode começar a editar a página modificando `app/page.tsx`. A página é atualizada automaticamente conforme você edita o arquivo.
-
-Este projeto usa [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) para otimizar e carregar automaticamente a [Geist](https://vercel.com/font), uma nova família de fontes da Vercel.
-
----
-
-## BackEnd - Executando Localmente
+### BackEnd - Executando Localmente
 
 Para executar o servidor backend localmente, siga estes passos a partir do diretório raiz do projeto:
 
@@ -166,3 +233,26 @@ Para executar o servidor backend localmente, siga estes passos a partir do diret
     ```
 
 O servidor estará disponível em [http://127.0.0.1:8000](http://127.0.0.1:8000).
+
+### FrontEnd - Executando Localmente 
+
+Primeiro, execute o servidor de desenvolvimento:
+
+```bash
+npm run dev
+# ou
+yarn dev
+# ou
+pnpm dev
+# ou
+bun dev
+```
+
+Abra [http://localhost:3000](http://localhost:3000) no seu navegador para ver o resultado.
+
+Você pode começar a editar a página modificando `app/page.tsx`. A página é atualizada automaticamente conforme você edita o arquivo.
+
+Este projeto usa [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) para otimizar e carregar automaticamente a [Geist](https://vercel.com/font), uma nova família de fontes da Vercel.
+
+---
+
