@@ -32,6 +32,11 @@ export function Navbar() {
           </Link>
           
           <div className="flex items-center space-x-4">
+            {userRole && (
+              <Button asChild variant="ghost">
+                <Link href="/dashboard">Dashboard</Link>
+              </Button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost">
@@ -39,16 +44,14 @@ export function Navbar() {
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Admin</DropdownMenuLabel>
-                <DropdownMenuSeparator />
+              <DropdownMenuContent align="end">                
                 {userRole === 'ADM' && (
                   <DropdownMenuItem asChild>
                     <Link href="/users">Usuários</Link>
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem onClick={handleLogout}>
-                  Logout
+                  Sair
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

@@ -45,10 +45,10 @@ function Dashboard() {
   return (
     <div className="container mx-auto p-4">
       <header className="mb-8">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <h1 className="text-2xl font-bold">Bem-vindo</h1>
       </header>
       <main>
-        <h2 className="text-xl mb-4">Bem-vindo, {user.email}!</h2>
+        <h2 className="text-xl mb-4">Olá, {user.email}!</h2>
         <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800">
           <h3 className="font-semibold">Dados da API:</h3>
           {error && <p className="text-red-500">Erro ao buscar dados: {error.message}</p>}
