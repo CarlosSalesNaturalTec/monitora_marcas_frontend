@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { ArrowLeft } from 'lucide-react';
 
 const DeleteUserPage = () => {
-  const { userRole, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [email, setEmail] = useState('');
@@ -43,7 +43,7 @@ const DeleteUserPage = () => {
   if (authLoading) {
     return <div className="flex justify-center items-center h-screen">Carregando...</div>;
   }
-  if (userRole !== 'ADM') {
+  if (user?.role !== 'ADM') {
     router.push('/');
     return <div className="flex justify-center items-center h-screen">Acesso Negado.</div>;
   }

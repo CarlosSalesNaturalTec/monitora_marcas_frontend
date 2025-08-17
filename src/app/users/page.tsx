@@ -8,14 +8,14 @@ import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/ca
 import { PlusCircle, KeyRound, Trash2 } from 'lucide-react';
 
 const UsersDashboardPage = () => {
-  const { userRole, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
   // Proteção de Rota
   if (authLoading) {
     return <div className="flex justify-center items-center h-screen">Carregando...</div>;
   }
-  if (userRole !== 'ADM') {
+  if (user?.role !== 'ADM') {
     router.push('/');
     return <div className="flex justify-center items-center h-screen">Acesso Negado. Redirecionando...</div>;
   }
