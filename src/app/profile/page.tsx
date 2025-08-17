@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getSearchTerms, saveSearchTerms, SearchTerms, TermGroup } from '@/lib/api';
+import { getSearchTerms, saveSearchTerms, runSearchPreview, SearchTerms, TermGroup, PreviewResult } from '@/lib/api';
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { X, Lightbulb } from 'lucide-react';
+import { X, Lightbulb, Search, Loader2 } from 'lucide-react';
 import { toast } from "react-hot-toast";
 
 
@@ -84,6 +84,120 @@ const TermManager: React.FC<TermManagerProps> = ({ title, description, terms, on
             </Badge>
           ))}
         </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// --- Subcomponente para a Aba de Preview ---
+
+interface PreviewPaneProps {
+  terms: SearchTerms;
+  isReadOnly: boolean;
+}
+
+const PreviewPane: React.FC<PreviewPaneProps> = ({ terms, isReadOnly }) => {
+  const [results, setResults] = useState<PreviewResult | null>(null);
+
+  const previewMutation = useMutation({
+    mutationFn: runSearchPreview,
+    onSuccess: (data) => {
+      setResults(data);
+      toast.success("Busca de preview concluída!");
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || "Falha ao buscar preview.");
+    },
+  });
+
+  const handleRunPreview = () => {
+    if (isReadOnly) {
+      toast.error("Você não tem permissão para executar esta ação.");
+      return;
+    }
+    previewMutation.mutate(terms);
+  };
+
+  const hasBrandTerms = terms.brand.main_terms.length > 0 || terms.brand.synonyms.length > 0;
+  const hasCompetitorTerms = terms.competitors.main_terms.length > 0 || terms.competitors.synonyms.length > 0;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Preview dos Resultados da Busca</CardTitle>
+        <CardDescription>
+          Clique no botão abaixo para iniciar uma busca no Google com os termos
+          configurados (incluindo alterações não salvas).
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {!isReadOnly && (
+          <Button type="button" onClick={handleRunPreview} disabled={previewMutation.isPending}>
+            {previewMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Search className="mr-2 h-4 w-4" />
+            )}
+            {previewMutation.isPending ? 'Pesquisando...' : 'Iniciar Pesquisa'}
+          </Button>
+        )}
+
+        {previewMutation.isError && (
+            <Alert variant="destructive">
+                <AlertTitle>Erro</AlertTitle>
+                <AlertDescription>
+                    {previewMutation.error.message || "Ocorreu um problema ao buscar os resultados."}
+                </AlertDescription>
+            </Alert>
+        )}
+
+        {results && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Resultados da Marca */}
+            <div className="space-y-2">
+              <h3 className="font-semibold">Resultados para "Marca"</h3>
+              {hasBrandTerms ? (
+                results.brand_results.length > 0 ? (
+                  <ul className="list-disc pl-5 space-y-1 text-sm">
+                    {results.brand_results.map((url, index) => (
+                      <li key={`brand-${index}`}>
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
+                          {url}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Nenhum resultado encontrado.</p>
+                )
+              ) : (
+                <p className="text-sm text-muted-foreground">Nenhum termo de marca configurado para a busca.</p>
+              )}
+            </div>
+
+            {/* Resultados dos Concorrentes */}
+            <div className="space-y-2">
+              <h3 className="font-semibold">Resultados para "Concorrentes"</h3>
+              {hasCompetitorTerms ? (
+                results.competitor_results.length > 0 ? (
+                  <ul className="list-disc pl-5 space-y-1 text-sm">
+                    {results.competitor_results.map((url, index) => (
+                      <li key={`competitor-${index}`}>
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
+                          {url}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Nenhum resultado encontrado.</p>
+                )
+              ) : (
+                 <p className="text-sm text-muted-foreground">Nenhum termo de concorrente configurado para a busca.</p>
+              )}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -182,9 +296,10 @@ const PlatformSettingsPage = () => {
 
       <form id="terms-form" onSubmit={handleSubmit}>
         <Tabs defaultValue="brand">
-          <TabsList className="grid w-full grid-cols-2 max-w-md mb-4">
+          <TabsList className="grid w-full grid-cols-3 max-w-md mb-4">
             <TabsTrigger value="brand">Marca</TabsTrigger>
             <TabsTrigger value="competitors">Concorrentes</TabsTrigger>
+            <TabsTrigger value="preview">Preview</TabsTrigger>
           </TabsList>
           
           <TabsContent value="brand">
@@ -237,6 +352,10 @@ const PlatformSettingsPage = () => {
                 isReadOnly={isReadOnly}
               />
             </div>
+          </TabsContent>
+
+          <TabsContent value="preview">
+            <PreviewPane terms={searchTerms} isReadOnly={isReadOnly} />
           </TabsContent>
         </Tabs>
       </form>

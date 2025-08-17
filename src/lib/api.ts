@@ -64,6 +64,11 @@ export interface SearchTerms {
   competitors: TermGroup;
 }
 
+export interface PreviewResult {
+  brand_results: string[];
+  competitor_results: string[];
+}
+
 // --- Funções da API ---
 
 export const getMyProfile = async (): Promise<UserProfile> => {
@@ -94,6 +99,16 @@ export const saveSearchTerms = async (terms: SearchTerms): Promise<SearchTerms> 
     return response.data;
   } catch (error) {
     console.error("Erro ao salvar termos de pesquisa:", error);
+    throw error;
+  }
+};
+
+export const runSearchPreview = async (terms: SearchTerms): Promise<PreviewResult> => {
+  try {
+    const response = await apiClient.post('/terms/preview', terms);
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao rodar o preview da busca:", error);
     throw error;
   }
 };
