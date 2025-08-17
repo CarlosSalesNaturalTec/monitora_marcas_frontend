@@ -158,12 +158,16 @@ const PreviewPane: React.FC<PreviewPaneProps> = ({ terms, isReadOnly }) => {
               <h3 className="font-semibold">Resultados para "Marca"</h3>
               {hasBrandTerms ? (
                 results.brand_results.length > 0 ? (
-                  <ul className="list-disc pl-5 space-y-1 text-sm">
-                    {results.brand_results.map((url, index) => (
-                      <li key={`brand-${index}`}>
-                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
-                          {url}
+                  <ul className="space-y-4">
+                    {results.brand_results.map((item, index) => (
+                      <li key={`brand-${index}`} className="text-sm">
+                        <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
+                          {item.link}
                         </a>
+                        <div
+                          className="mt-1 text-xs text-gray-600"
+                          dangerouslySetInnerHTML={{ __html: item.htmlSnippet }}
+                        />
                       </li>
                     ))}
                   </ul>
@@ -180,12 +184,16 @@ const PreviewPane: React.FC<PreviewPaneProps> = ({ terms, isReadOnly }) => {
               <h3 className="font-semibold">Resultados para "Concorrentes"</h3>
               {hasCompetitorTerms ? (
                 results.competitor_results.length > 0 ? (
-                  <ul className="list-disc pl-5 space-y-1 text-sm">
-                    {results.competitor_results.map((url, index) => (
-                      <li key={`competitor-${index}`}>
-                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
-                          {url}
+                  <ul className="space-y-4">
+                    {results.competitor_results.map((item, index) => (
+                      <li key={`competitor-${index}`} className="text-sm">
+                        <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
+                          {item.link}
                         </a>
+                        <div
+                          className="mt-1 text-xs text-gray-600"
+                          dangerouslySetInnerHTML={{ __html: item.htmlSnippet }}
+                        />
                       </li>
                     ))}
                   </ul>

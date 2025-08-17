@@ -64,9 +64,14 @@ export interface SearchTerms {
   competitors: TermGroup;
 }
 
+export interface SearchResultItem {
+  link: string;
+  htmlSnippet: string;
+}
+
 export interface PreviewResult {
-  brand_results: string[];
-  competitor_results: string[];
+  brand_results: SearchResultItem[];
+  competitor_results: SearchResultItem[];
 }
 
 // --- Funções da API ---
