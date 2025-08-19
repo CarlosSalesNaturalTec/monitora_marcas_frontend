@@ -3,14 +3,14 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { runMonitorSearch, getLatestMonitorData, MonitorData } from '@/lib/api';
+import { runMonitorSearch, getLatestMonitorData, deleteLatestMonitorData, MonitorData } from '@/lib/api';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, PlayCircle, Info } from 'lucide-react';
+import { Loader2, PlayCircle, Info, Trash2 } from 'lucide-react';
 import { toast } from "react-hot-toast";
 import { format } from 'date-fns';
 
@@ -117,11 +117,10 @@ const MonitorPage = () => {
   });
 
   // Mutation para iniciar uma nova coleta
-  const mutation = useMutation({
+  const runMutation = useMutation({
     mutationFn: runMonitorSearch,
     onSuccess: () => {
       toast.success("Coleta de dados concluída com sucesso!");
-      // Invalida a query de 'latestMonitorData' para buscar os novos dados
       queryClient.invalidateQueries({ queryKey: ['latestMonitorData'] });
     },
     onError: (error: any) => {
@@ -129,12 +128,31 @@ const MonitorPage = () => {
     },
   });
 
+  // Mutation para excluir a coleta existente
+  const deleteMutation = useMutation({
+    mutationFn: deleteLatestMonitorData,
+    onSuccess: () => {
+      toast.success("Dados da coleta anterior foram limpos!");
+      queryClient.invalidateQueries({ queryKey: ['latestMonitorData'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || "Falha ao limpar os dados.");
+    },
+  });
+
   const handleRunMonitoring = () => {
-    mutation.mutate();
+    runMutation.mutate();
+  };
+
+  const handleDeleteData = () => {
+    if (window.confirm("Tem certeza de que deseja excluir os dados da última coleta? Esta ação não pode ser desfeita.")) {
+      deleteMutation.mutate();
+    }
   };
 
   // Verifica se já existe alguma coleta para desabilitar o botão
   const hasExistingData = !!(latestData?.brand || latestData?.competitors);
+  const isMutating = runMutation.isPending || deleteMutation.isPending;
 
   if (authLoading || (isQueryLoading && !latestData)) {
     return <div className="flex justify-center items-center h-screen">Carregando...</div>;
@@ -153,17 +171,33 @@ const MonitorPage = () => {
             Acompanhe os resultados relevantes para sua marca e concorrentes.
           </p>
         </div>
-        <Button 
-          onClick={handleRunMonitoring} 
-          disabled={mutation.isPending || hasExistingData}
-        >
-          {mutation.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <PlayCircle className="mr-2 h-4 w-4" />
+        <div className="flex items-center gap-2">
+          <Button 
+            onClick={handleRunMonitoring} 
+            disabled={isMutating || hasExistingData}
+          >
+            {runMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <PlayCircle className="mr-2 h-4 w-4" />
+            )}
+            {runMutation.isPending ? 'Coletando...' : 'Iniciar Nova Coleta'}
+          </Button>
+          {hasExistingData && (
+            <Button 
+              variant="destructive"
+              onClick={handleDeleteData} 
+              disabled={isMutating}
+            >
+              {deleteMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="mr-2 h-4 w-4" />
+              )}
+              {deleteMutation.isPending ? 'Limpando...' : 'Limpar Coleta'}
+            </Button>
           )}
-          {mutation.isPending ? 'Coletando...' : 'Iniciar Nova Coleta'}
-        </Button>
+        </div>
       </div>
 
       {hasExistingData && (
@@ -171,7 +205,7 @@ const MonitorPage = () => {
           <Info className="h-4 w-4 text-blue-600" />
           <AlertTitle>Coleta já Realizada</AlertTitle>
           <AlertDescription>
-            Os dados abaixo são da última coleta realizada. Para uma nova busca, será necessário limpar os dados atuais (funcionalidade futura).
+            Os dados abaixo são da última coleta. Para realizar uma nova busca, clique em "Limpar Coleta".
           </AlertDescription>
         </Alert>
       )}
@@ -189,10 +223,10 @@ const MonitorPage = () => {
               <TabsTrigger value="competitors">Concorrentes</TabsTrigger>
             </TabsList>
             <TabsContent value="brand" className="mt-4">
-              <ResultsDisplay data={latestData?.brand} isLoading={isQueryLoading} />
+              <ResultsDisplay data={latestData?.brand} isLoading={isQueryLoading || isMutating} />
             </TabsContent>
             <TabsContent value="competitors" className="mt-4">
-              <ResultsDisplay data={latestData?.competitors} isLoading={isQueryLoading} />
+              <ResultsDisplay data={latestData?.competitors} isLoading={isQueryLoading || isMutating} />
             </TabsContent>
           </Tabs>
         </TabsContent>

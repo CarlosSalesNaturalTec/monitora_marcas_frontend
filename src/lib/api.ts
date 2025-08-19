@@ -188,3 +188,13 @@ export const getLatestMonitorData = async (): Promise<LatestMonitorData> => {
     throw error;
   }
 };
+
+export const deleteLatestMonitorData = async (): Promise<{ message: string }> => {
+  try {
+    const response = await apiClient.delete('/monitor/latest');
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao excluir dados da coleta:", error);
+    throw error;
+  }
+};
