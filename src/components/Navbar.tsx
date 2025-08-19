@@ -50,6 +50,9 @@ export function Navbar() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link href="/monitor">Monitorar</Link>
+                </DropdownMenuItem>
                 {/* Links específicos para ADM */}
                 {user.role === 'ADM' && (
                   <>
@@ -59,9 +62,9 @@ export function Navbar() {
                     <DropdownMenuItem asChild>
                       <Link href="/users">Usuários</Link>
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator />
                   </>
                 )}
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   Sair
                 </DropdownMenuItem>

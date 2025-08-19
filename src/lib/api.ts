@@ -134,3 +134,57 @@ export const adminDeleteUser = async (data: AdminUserDeleteData) => {
     const response = await apiClient.post('/admin/delete-user', data);
     return response.data;
 };
+
+// --- Tipos para Monitoramento ---
+
+export interface MonitorResultItem {
+  link: string;
+  displayLink: string;
+  title: string;
+  snippet: string;
+  htmlSnippet: string;
+  pagemap?: Record<string, any>;
+  generate_id: () => string; // Adicionado para consistência com o frontend
+}
+
+export interface MonitorRun {
+  id?: string;
+  search_terms_query: string;
+  search_group: 'brand' | 'competitors';
+  search_type: "relevante";
+  total_results_found: number;
+  collected_at: string; // Datas são strings no JSON
+}
+
+export interface MonitorData {
+  run_metadata: MonitorRun;
+  results: MonitorResultItem[];
+}
+
+export interface LatestMonitorData {
+  brand?: MonitorData;
+  competitors?: MonitorData;
+}
+
+
+// --- Funções de Monitoramento ---
+
+export const runMonitorSearch = async (): Promise<Record<string, MonitorData>> => {
+  try {
+    const response = await apiClient.post('/monitor/run');
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao iniciar a coleta de monitoramento:", error);
+    throw error;
+  }
+};
+
+export const getLatestMonitorData = async (): Promise<LatestMonitorData> => {
+  try {
+    const response = await apiClient.get('/monitor/latest');
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao buscar os últimos dados de monitoramento:", error);
+    throw error;
+  }
+};
