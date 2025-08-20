@@ -127,7 +127,7 @@ const HistoricalDisplay: React.FC<HistoricalDisplayProps> = ({ data, isLoading, 
         <Info className="h-4 w-4" />
         <AlertTitle>Nenhum Dado Histórico</AlertTitle>
         <AlertDescription>
-          {`Nenhuma coleta histórica foi realizada para '${groupName}'. Insira uma data de início e inicie a coleta.`}
+          {`Nenhuma coleta histórica foi realizada para '${groupName}'. Vá para a aba 'Coletas' para iniciar uma.`}
         </AlertDescription>
       </Alert>
     );
@@ -183,79 +183,13 @@ const HistoricalDisplay: React.FC<HistoricalDisplayProps> = ({ data, isLoading, 
 // --- Subcomponente: Conteúdo da Aba Histórico ---
 
 const HistoricalTabContent = () => {
-  const [startDate, setStartDate] = useState('');
-  const queryClient = useQueryClient();
-
-  const { data: historicalData, isLoading: isQueryLoading, isError } = useQuery({
+  const { data: historicalData, isLoading: isQueryLoading } = useQuery({
     queryKey: ['historicalMonitorData'],
     queryFn: getHistoricalMonitorData,
   });
 
-  const mutation = useMutation({
-    mutationFn: runHistoricalMonitorSearch,
-    onSuccess: (data) => {
-      toast.success(data.message || "Coleta histórica iniciada!");
-      queryClient.invalidateQueries({ queryKey: ['historicalMonitorData'] });
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.detail || "Falha ao iniciar coleta histórica.");
-    },
-  });
-
-  const handleRunHistorical = () => {
-    if (!startDate) {
-      toast.error("Por favor, selecione uma data de início.");
-      return;
-    }
-    const dateObj = new Date(startDate);
-    if (!isValid(dateObj)) {
-      toast.error("Data inválida. Use o formato AAAA-MM-DD.");
-      return;
-    }
-    mutation.mutate({ start_date: startDate });
-  };
-
-  const hasExistingData = !!(historicalData?.brand?.length || historicalData?.competitors?.length);
-
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Iniciar Coleta Histórica</CardTitle>
-          <CardDescription>
-            Selecione uma data de início para buscar dados históricos. O processo pode levar tempo e consumirá sua cota diária de requisições.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col sm:flex-row items-end gap-4">
-          <div className="grid w-full max-w-sm items-center gap-1.5">
-            <Label htmlFor="start-date">Data de Início</Label>
-            <Input 
-              type="date" 
-              id="start-date" 
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              disabled={mutation.isPending || hasExistingData}
-              max={new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split("T")[0]} // Ontem
-            />
-          </div>
-          <Button onClick={handleRunHistorical} disabled={mutation.isPending || hasExistingData}>
-            {mutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <History className="mr-2 h-4 w-4" />}
-            {mutation.isPending ? 'Coletando...' : 'Iniciar Coleta Histórica'}
-          </Button>
-        </CardContent>
-        {hasExistingData && (
-             <CardContent>
-                <Alert variant="default" className="bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
-                    <Info className="h-4 w-4 text-blue-600" />
-                    <AlertTitle>Coleta Histórica já Realizada</AlertTitle>
-                    <AlertDescription>
-                        Já existem dados históricos. Para realizar uma nova coleta, todos os dados (relevantes e históricos) devem ser limpos na aba "Dados do Agora".
-                    </AlertDescription>
-                </Alert>
-            </CardContent>
-        )}
-      </Card>
-
       <Tabs defaultValue="brand">
         <TabsList>
           <TabsTrigger value="brand">Marca</TabsTrigger>
@@ -420,6 +354,175 @@ const SummaryTabContent = () => {
   );
 };
 
+// --- Subcomponente: Conteúdo da Aba Coletas ---
+
+const CollectionsTabContent = () => {
+    const { user } = useAuth();
+    const queryClient = useQueryClient();
+    const [startDate, setStartDate] = useState('');
+
+    const { data: latestData } = useQuery({
+        queryKey: ['latestMonitorData'],
+        queryFn: getLatestMonitorData,
+    });
+
+    const { data: historicalData } = useQuery({
+        queryKey: ['historicalMonitorData'],
+        queryFn: getHistoricalMonitorData,
+    });
+
+    const { data: summaryData } = useQuery({
+        queryKey: ['monitorSummary'],
+        queryFn: getMonitorSummary,
+    });
+
+    const runMutation = useMutation({
+        mutationFn: runMonitorSearch,
+        onSuccess: () => {
+            toast.success("Coleta de dados concluída com sucesso!");
+            queryClient.invalidateQueries({ queryKey: ['latestMonitorData'] });
+            queryClient.invalidateQueries({ queryKey: ['monitorSummary'] });
+        },
+        onError: (error: any) => {
+            toast.error(error.response?.data?.detail || "Falha ao iniciar a coleta.");
+        },
+    });
+
+    const historicalMutation = useMutation({
+        mutationFn: runHistoricalMonitorSearch,
+        onSuccess: (data) => {
+            toast.success(data.message || "Coleta histórica iniciada!");
+            queryClient.invalidateQueries({ queryKey: ['historicalMonitorData'] });
+            queryClient.invalidateQueries({ queryKey: ['monitorSummary'] });
+        },
+        onError: (error: any) => {
+            toast.error(error.response?.data?.detail || "Falha ao iniciar coleta histórica.");
+        },
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: deleteAllMonitorData,
+        onSuccess: () => {
+            toast.success("Todos os dados de monitoramento foram limpos!");
+            queryClient.invalidateQueries({ queryKey: ['latestMonitorData'] });
+            queryClient.invalidateQueries({ queryKey: ['historicalMonitorData'] });
+            queryClient.invalidateQueries({ queryKey: ['monitorSummary'] });
+        },
+        onError: (error: any) => {
+            toast.error(error.response?.data?.detail || "Falha ao limpar os dados.");
+        },
+    });
+
+    const handleRunMonitoring = () => runMutation.mutate();
+    const handleDeleteData = () => {
+        if (window.confirm("ATENÇÃO: Esta ação é irreversível e excluirá TODOS os dados de monitoramento. Deseja continuar?")) {
+            deleteMutation.mutate();
+        }
+    };
+    const handleRunHistorical = () => {
+        if (!startDate) {
+            toast.error("Por favor, selecione uma data de início.");
+            return;
+        }
+        const dateObj = new Date(startDate);
+        if (!isValid(dateObj)) {
+            toast.error("Data inválida. Use o formato AAAA-MM-DD.");
+            return;
+        }
+        historicalMutation.mutate({ start_date: startDate });
+    };
+
+    const hasRelevantData = !!(latestData?.brand || latestData?.competitors);
+    const hasHistoricalData = !!(historicalData?.brand?.length || historicalData?.competitors?.length);
+    const hasAnyData = summaryData ? summaryData.total_runs > 0 : false;
+    const isMutating = runMutation.isPending || deleteMutation.isPending || historicalMutation.isPending;
+
+    return (
+        <div className="space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Coleta do Agora (Relevante)</CardTitle>
+                    <CardDescription>
+                        Inicia uma nova busca para os termos de marca e concorrentes, trazendo os resultados mais recentes. Esta ação só pode ser executada se não houver dados de uma coleta "do agora" anterior.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Button onClick={handleRunMonitoring} disabled={isMutating || hasRelevantData}>
+                        {runMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlayCircle className="mr-2 h-4 w-4" />}
+                        {runMutation.isPending ? 'Coletando...' : 'Iniciar Coleta do Agora'}
+                    </Button>
+                    {hasRelevantData && (
+                        <Alert variant="default" className="mt-4 bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
+                            <Info className="h-4 w-4 text-blue-600" />
+                            <AlertTitle>Coleta "do Agora" já Realizada</AlertTitle>
+                            <AlertDescription>
+                                Para realizar uma nova busca, é preciso limpar todos os dados existentes na seção "Gerenciamento de Dados".
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Coleta de Dados Históricos</CardTitle>
+                    <CardDescription>
+                        Preenche o banco de dados com informações passadas a partir de uma data de início. Esta ação só pode ser executada uma vez.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex flex-col sm:flex-row items-end gap-4">
+                        <div className="grid w-full max-w-sm items-center gap-1.5">
+                            <Label htmlFor="start-date">Data de Início</Label>
+                            <Input
+                                type="date"
+                                id="start-date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                disabled={isMutating || hasHistoricalData}
+                                max={new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split("T")[0]}
+                            />
+                        </div>
+                        <Button onClick={handleRunHistorical} disabled={isMutating || hasHistoricalData}>
+                            {historicalMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <History className="mr-2 h-4 w-4" />}
+                            {historicalMutation.isPending ? 'Coletando...' : 'Iniciar Coleta Histórica'}
+                        </Button>
+                    </div>
+                     {hasHistoricalData && (
+                        <Alert variant="default" className="mt-4 bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
+                            <Info className="h-4 w-4 text-blue-600" />
+                            <AlertTitle>Coleta Histórica já Realizada</AlertTitle>
+                            <AlertDescription>
+                                Para realizar uma nova coleta, todos os dados devem ser limpos na seção "Gerenciamento de Dados".
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                </CardContent>
+            </Card>
+
+            {user?.role === 'ADM' && (
+                 <Card className="border-destructive">
+                    <CardHeader>
+                        <CardTitle>Gerenciamento de Dados</CardTitle>
+                        <CardDescription>
+                            Ações perigosas que afetam todos os dados de monitoramento. Use com extremo cuidado.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                         <Button variant="destructive" onClick={handleDeleteData} disabled={isMutating || !hasAnyData}>
+                            {deleteMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                            {deleteMutation.isPending ? 'Limpando...' : 'Limpar Todos os Dados'}
+                        </Button>
+                        {!hasAnyData && (
+                             <p className="text-sm text-muted-foreground mt-2">Não há dados para limpar.</p>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+        </div>
+    );
+};
+
 
 // --- Componente Principal da Página ---
 
@@ -433,53 +536,13 @@ const MonitorPage = () => {
     enabled: !!user,
   });
   
-  const { data: historicalData } = useQuery({
-    queryKey: ['historicalMonitorData'],
-    queryFn: getHistoricalMonitorData,
-    enabled: !!user,
-  });
-
   const { data: summaryData, isLoading: isSummaryLoading, isError: isSummaryError } = useQuery({
     queryKey: ['monitorSummary'],
     queryFn: getMonitorSummary,
     enabled: !!user,
   });
 
-  const runMutation = useMutation({
-    mutationFn: runMonitorSearch,
-    onSuccess: () => {
-      toast.success("Coleta de dados concluída com sucesso!");
-      queryClient.invalidateQueries({ queryKey: ['latestMonitorData'] });
-      queryClient.invalidateQueries({ queryKey: ['monitorSummary'] });
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.detail || "Falha ao iniciar a coleta.");
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteAllMonitorData,
-    onSuccess: () => {
-      toast.success("Todos os dados de monitoramento foram limpos!");
-      queryClient.invalidateQueries({ queryKey: ['latestMonitorData'] });
-      queryClient.invalidateQueries({ queryKey: ['historicalMonitorData'] });
-      queryClient.invalidateQueries({ queryKey: ['monitorSummary'] });
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.detail || "Falha ao limpar os dados.");
-    },
-  });
-
-  const handleRunMonitoring = () => runMutation.mutate();
-  const handleDeleteData = () => {
-    if (window.confirm("ATENÇÃO: Esta ação é irreversível e excluirá TODOS os dados de monitoramento, incluindo o histórico completo. Deseja continuar?")) {
-      deleteMutation.mutate();
-    }
-  };
-
-  const hasRelevantData = !!(latestData?.brand || latestData?.competitors);
   const hasAnyData = summaryData ? summaryData.total_runs > 0 : false;
-  const isMutating = runMutation.isPending || deleteMutation.isPending;
 
   if (authLoading || (isSummaryLoading && !summaryData)) {
     return <div className="flex justify-center items-center h-screen">Carregando...</div>;
@@ -495,48 +558,27 @@ const MonitorPage = () => {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Monitoramento de Termos</h1>
           <p className="text-muted-foreground mt-1">
-            Acompanhe os resultados relevantes (agora) e históricos (passado) para sua marca e concorrentes.
+            Acompanhe os resultados das coletas de dados para sua marca e concorrentes.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={handleRunMonitoring} disabled={isMutating || hasRelevantData}>
-            {runMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlayCircle className="mr-2 h-4 w-4" />}
-            {runMutation.isPending ? 'Coletando...' : 'Coleta do Agora'}
-          </Button>
-          {user?.role === 'ADM' && hasAnyData && (
-            <Button variant="destructive" onClick={handleDeleteData} disabled={isMutating}>
-              {deleteMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-              {deleteMutation.isPending ? 'Limpando...' : 'Limpar Todos os Dados'}
-            </Button>
-          )}
-        </div>
       </div>
-
-      {hasRelevantData && (
-        <Alert variant="default" className="mb-6 bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
-          <Info className="h-4 w-4 text-blue-600" />
-          <AlertTitle>Coleta "do Agora" já Realizada</AlertTitle>
-          <AlertDescription>
-            Os dados abaixo são da última coleta de dados relevantes. Para realizar uma nova busca, é preciso limpar todos os dados existentes.
-          </AlertDescription>
-        </Alert>
-      )}
       
       {!hasAnyData && !isSummaryLoading && (
          <Alert variant="destructive" className="mb-6">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Banco de Dados Vazio</AlertTitle>
           <AlertDescription>
-            Nenhum dado de monitoramento encontrado. Inicie uma "Coleta do Agora" ou uma "Coleta Histórica" para começar.
+            Nenhum dado de monitoramento encontrado. Vá para a aba "Coletas" para começar.
           </AlertDescription>
         </Alert>
       )}
 
       <Tabs defaultValue="summary">
-        <TabsList className="grid w-full grid-cols-3 max-w-2xl mb-4">
+        <TabsList className="grid w-full grid-cols-4 max-w-4xl mb-4">
           <TabsTrigger value="summary">Resumo e Logs</TabsTrigger>
           <TabsTrigger value="relevant">Dados do Agora (Relevante)</TabsTrigger>
           <TabsTrigger value="historical">Dados do Passado (Histórico)</TabsTrigger>
+          <TabsTrigger value="collections">Coletas</TabsTrigger>
         </TabsList>
         
         <TabsContent value="summary">
@@ -550,16 +592,20 @@ const MonitorPage = () => {
               <TabsTrigger value="competitors">Concorrentes</TabsTrigger>
             </TabsList>
             <TabsContent value="brand" className="mt-4">
-              <ResultsDisplay data={latestData?.brand} isLoading={isLatestLoading || isMutating} />
+              <ResultsDisplay data={latestData?.brand} isLoading={isLatestLoading} />
             </TabsContent>
             <TabsContent value="competitors" className="mt-4">
-              <ResultsDisplay data={latestData?.competitors} isLoading={isLatestLoading || isMutating} />
+              <ResultsDisplay data={latestData?.competitors} isLoading={isLatestLoading} />
             </TabsContent>
           </Tabs>
         </TabsContent>
         
         <TabsContent value="historical">
           <HistoricalTabContent />
+        </TabsContent>
+
+        <TabsContent value="collections">
+          <CollectionsTabContent />
         </TabsContent>
       </Tabs>
     </div>
