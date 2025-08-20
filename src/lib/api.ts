@@ -144,16 +144,18 @@ export interface MonitorResultItem {
   snippet: string;
   htmlSnippet: string;
   pagemap?: Record<string, any>;
-  generate_id: () => string; // Adicionado para consistência com o frontend
 }
 
 export interface MonitorRun {
   id?: string;
   search_terms_query: string;
   search_group: 'brand' | 'competitors';
-  search_type: "relevante";
+  search_type: "relevante" | "historico";
   total_results_found: number;
   collected_at: string; // Datas são strings no JSON
+  range_start?: string;
+  range_end?: string;
+  last_interruption_date?: string;
 }
 
 export interface MonitorData {
@@ -161,9 +163,20 @@ export interface MonitorData {
   results: MonitorResultItem[];
 }
 
+// Tipos para "Dados do Agora"
 export interface LatestMonitorData {
   brand?: MonitorData;
   competitors?: MonitorData;
+}
+
+// Tipos para "Dados do Passado"
+export interface HistoricalMonitorData {
+  brand: MonitorData[];
+  competitors: MonitorData[];
+}
+
+export interface HistoricalRunRequest {
+  start_date: string; // Formato YYYY-MM-DD
 }
 
 
@@ -195,6 +208,27 @@ export const deleteLatestMonitorData = async (): Promise<{ message: string }> =>
     return response.data;
   } catch (error) {
     console.error("Erro ao excluir dados da coleta:", error);
+    throw error;
+  }
+};
+
+// Funções para Coleta Histórica
+export const runHistoricalMonitorSearch = async (data: HistoricalRunRequest): Promise<{ message: string }> => {
+  try {
+    const response = await apiClient.post('/monitor/run/historical', data);
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao iniciar a coleta histórica:", error);
+    throw error;
+  }
+};
+
+export const getHistoricalMonitorData = async (): Promise<HistoricalMonitorData> => {
+  try {
+    const response = await apiClient.get('/monitor/historical');
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao buscar dados históricos:", error);
     throw error;
   }
 };
