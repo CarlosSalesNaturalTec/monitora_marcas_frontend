@@ -123,3 +123,15 @@ gcloud run deploy social-listening-frontend   --image gcr.io/[PROJECT_ID]/social
     - Os resultados são exibidos agrupados por dia de coleta.
     - Caso a cota diária seja atingida, o processo é pausado e a interface informa ao usuário a partir de qual data a coleta poderá ser continuada.
     - O botão para iniciar a coleta histórica é desabilitado se já houver dados históricos armazenados.
+ - **Dados Contínuos (Busca Agendada)**:
+    - Endpoint: `POST /monitor/run/continuous`
+    - Projetado para ser acionado por um serviço de agendamento (ex: Google Cloud Scheduler), executando uma ou mais vezes ao dia.
+    - Realiza buscas para "Marca" e "Concorrentes" utilizando o parâmetro `dateRestrict=d1` para obter resultados das últimas 24 horas.
+    - Pagina até um máximo de 10 páginas por grupo de termos, respeitando a cota diária de requisições.
+    - Verifica duplicatas de URLs antes de salvar novos resultados no Firestore.
+    - Cria um log detalhado de cada requisição no Firestore para fins de auditoria e depuração.
+  - **Controle de Cota**:
+    - Implementa um contador global que limita o total de requisições à API do Google a 100 por dia, somando todos os tipos de busca.
+    - Caso a cota diária seja atingida, o processo de coleta é interrompido.
+  - **Gerenciamento de Duplicatas**:
+    - Utiliza um hash da URL como ID do documento no Firestore para evitar o armazenamento de links duplicados em todas as coletas.
