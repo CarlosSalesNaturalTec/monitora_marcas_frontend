@@ -182,6 +182,36 @@ export interface HistoricalRunRequest {
 
 // --- Funções de Monitoramento ---
 
+// --- NEW Types for Monitor Summary ---
+
+export interface RunSummary {
+  id: string;
+  search_group: 'brand' | 'competitors';
+  search_type: "relevante" | "historico" | "continuo";
+  collected_at: string;
+  total_results_found: number;
+  search_terms_query: string;
+  range_start?: string;
+}
+
+export interface RequestLog {
+  run_id: string;
+  search_group: string;
+  page: number;
+  results_count: number;
+  timestamp: string;
+}
+
+export interface MonitorSummary {
+  total_runs: number;
+  total_requests: number;
+  total_results_saved: number;
+  runs_by_type: Record<string, number>;
+  results_by_group: Record<string, number>;
+  latest_runs: RunSummary[];
+  latest_logs: RequestLog[];
+}
+
 export const runMonitorSearch = async (): Promise<Record<string, MonitorData>> => {
   try {
     const response = await apiClient.post('/monitor/run');
@@ -229,6 +259,16 @@ export const getHistoricalMonitorData = async (): Promise<HistoricalMonitorData>
     return response.data;
   } catch (error) {
     console.error("Erro ao buscar dados históricos:", error);
+    throw error;
+  }
+};
+
+export const getMonitorSummary = async (): Promise<MonitorSummary> => {
+  try {
+    const response = await apiClient.get('/monitor/summary');
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao buscar o resumo do monitoramento:", error);
     throw error;
   }
 };

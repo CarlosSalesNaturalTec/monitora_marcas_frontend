@@ -5,7 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   runMonitorSearch, getLatestMonitorData, deleteAllMonitorData, MonitorData,
-  getHistoricalMonitorData, runHistoricalMonitorSearch, HistoricalMonitorData 
+  getHistoricalMonitorData, runHistoricalMonitorSearch, HistoricalMonitorData,
+  getMonitorSummary
 } from '@/lib/api';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +16,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, PlayCircle, Info, Trash2, History, AlertTriangle } from 'lucide-react';
+import { Loader2, PlayCircle, Info, Trash2, History, AlertTriangle, FileText, BarChart } from 'lucide-react';
 import { toast } from "react-hot-toast";
 import { format, isValid } from 'date-fns';
 
@@ -271,6 +272,154 @@ const HistoricalTabContent = () => {
   );
 };
 
+// --- Subcomponente: Conteúdo da Aba Resumo e Logs ---
+
+const SummaryTabContent = () => {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['monitorSummary'],
+    queryFn: getMonitorSummary,
+  });
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /> <span className="ml-2">Carregando resumo...</span></div>;
+  }
+
+  if (isError || !data) {
+    return (
+      <Alert variant="destructive">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Erro ao Carregar Resumo</AlertTitle>
+        <AlertDescription>
+          Não foi possível buscar os dados de resumo e logs. Tente novamente mais tarde.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  const {
+    total_runs, total_requests, total_results_saved,
+    runs_by_type, results_by_group, latest_runs, latest_logs
+  } = data;
+
+  return (
+    <div className="space-y-6">
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total de Execuções</CardTitle>
+            <PlayCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{total_runs}</div>
+            <p className="text-xs text-muted-foreground">
+              {runs_by_type.relevante || 0} Relevante, {runs_by_type.historico || 0} Histórico, {runs_by_type.continuo || 0} Contínuo
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total de Requisições</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{total_requests}</div>
+            <p className="text-xs text-muted-foreground">Requisições à API do Google</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Resultados Salvos</CardTitle>
+            <BarChart className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{total_results_saved}</div>
+            <p className="text-xs text-muted-foreground">
+              {results_by_group.brand || 0} Marca, {results_by_group.competitors || 0} Concorrentes
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Latest Runs Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Últimas Execuções</CardTitle>
+          <CardDescription>As 50 execuções de monitoramento mais recentes.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Grupo</TableHead>
+                <TableHead>Resultados</TableHead>
+                <TableHead>Query</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {latest_runs.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center">Nenhuma execução encontrada.</TableCell>
+                </TableRow>
+              ) : (
+                latest_runs.map(run => (
+                  <TableRow key={run.id}>
+                    <TableCell>{format(new Date(run.collected_at), "dd/MM/yy HH:mm")}</TableCell>
+                    <TableCell><Badge variant="outline">{run.search_type}</Badge></TableCell>
+                    <TableCell>{run.search_group}</TableCell>
+                    <TableCell>{run.total_results_found}</TableCell>
+                    <TableCell className="max-w-xs truncate"><span title={run.search_terms_query}>{run.search_terms_query}</span></TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Latest Logs Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Logs de Requisições Recentes</CardTitle>
+          <CardDescription>Os 100 logs de requisição mais recentes.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Timestamp</TableHead>
+                <TableHead>Run ID</TableHead>
+                <TableHead>Grupo</TableHead>
+                <TableHead>Página</TableHead>
+                <TableHead>Resultados na Página</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+               {latest_logs.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center">Nenhum log encontrado.</TableCell>
+                </TableRow>
+              ) : (
+                latest_logs.map((log, index) => (
+                  <TableRow key={`${log.run_id}-${log.page}-${index}`}>
+                    <TableCell>{format(new Date(log.timestamp), "dd/MM/yy HH:mm:ss")}</TableCell>
+                    <TableCell className="font-mono text-xs truncate max-w-[100px]"><span title={log.run_id}>{log.run_id}</span></TableCell>
+                    <TableCell>{log.search_group}</TableCell>
+                    <TableCell>{log.page}</TableCell>
+                    <TableCell>{log.results_count}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
 
 // --- Componente Principal da Página ---
 
@@ -278,7 +427,7 @@ const MonitorPage = () => {
   const { user, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: latestData, isLoading: isQueryLoading, isError } = useQuery({
+  const { data: latestData, isLoading: isLatestLoading, isError: isLatestError } = useQuery({
     queryKey: ['latestMonitorData'],
     queryFn: getLatestMonitorData,
     enabled: !!user,
@@ -290,11 +439,18 @@ const MonitorPage = () => {
     enabled: !!user,
   });
 
+  const { data: summaryData, isLoading: isSummaryLoading, isError: isSummaryError } = useQuery({
+    queryKey: ['monitorSummary'],
+    queryFn: getMonitorSummary,
+    enabled: !!user,
+  });
+
   const runMutation = useMutation({
     mutationFn: runMonitorSearch,
     onSuccess: () => {
       toast.success("Coleta de dados concluída com sucesso!");
       queryClient.invalidateQueries({ queryKey: ['latestMonitorData'] });
+      queryClient.invalidateQueries({ queryKey: ['monitorSummary'] });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.detail || "Falha ao iniciar a coleta.");
@@ -307,6 +463,7 @@ const MonitorPage = () => {
       toast.success("Todos os dados de monitoramento foram limpos!");
       queryClient.invalidateQueries({ queryKey: ['latestMonitorData'] });
       queryClient.invalidateQueries({ queryKey: ['historicalMonitorData'] });
+      queryClient.invalidateQueries({ queryKey: ['monitorSummary'] });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.detail || "Falha ao limpar os dados.");
@@ -321,15 +478,14 @@ const MonitorPage = () => {
   };
 
   const hasRelevantData = !!(latestData?.brand || latestData?.competitors);
-  const hasHistoricalData = !!(historicalData?.brand?.length || historicalData?.competitors?.length);
-  const hasAnyData = hasRelevantData || hasHistoricalData;
+  const hasAnyData = summaryData ? summaryData.total_runs > 0 : false;
   const isMutating = runMutation.isPending || deleteMutation.isPending;
 
-  if (authLoading || (isQueryLoading && !latestData)) {
+  if (authLoading || (isSummaryLoading && !summaryData)) {
     return <div className="flex justify-center items-center h-screen">Carregando...</div>;
   }
 
-  if (isError) {
+  if (isLatestError || isSummaryError) {
     return <div className="flex justify-center items-center h-screen text-red-500">Erro ao carregar os dados de monitoramento.</div>;
   }
 
@@ -366,7 +522,7 @@ const MonitorPage = () => {
         </Alert>
       )}
       
-      {!hasAnyData && !isQueryLoading && (
+      {!hasAnyData && !isSummaryLoading && (
          <Alert variant="destructive" className="mb-6">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Banco de Dados Vazio</AlertTitle>
@@ -377,9 +533,10 @@ const MonitorPage = () => {
       )}
 
       <Tabs defaultValue="relevant">
-        <TabsList className="grid w-full grid-cols-2 max-w-md mb-4">
+        <TabsList className="grid w-full grid-cols-3 max-w-lg mb-4">
           <TabsTrigger value="relevant">Dados do Agora (Relevante)</TabsTrigger>
           <TabsTrigger value="historical">Dados do Passado (Histórico)</TabsTrigger>
+          <TabsTrigger value="summary">Resumo e Logs</TabsTrigger>
         </TabsList>
         
         <TabsContent value="relevant">
@@ -389,16 +546,20 @@ const MonitorPage = () => {
               <TabsTrigger value="competitors">Concorrentes</TabsTrigger>
             </TabsList>
             <TabsContent value="brand" className="mt-4">
-              <ResultsDisplay data={latestData?.brand} isLoading={isQueryLoading || isMutating} />
+              <ResultsDisplay data={latestData?.brand} isLoading={isLatestLoading || isMutating} />
             </TabsContent>
             <TabsContent value="competitors" className="mt-4">
-              <ResultsDisplay data={latestData?.competitors} isLoading={isQueryLoading || isMutating} />
+              <ResultsDisplay data={latestData?.competitors} isLoading={isLatestLoading || isMutating} />
             </TabsContent>
           </Tabs>
         </TabsContent>
         
         <TabsContent value="historical">
           <HistoricalTabContent />
+        </TabsContent>
+
+        <TabsContent value="summary">
+          <SummaryTabContent />
         </TabsContent>
       </Tabs>
     </div>
