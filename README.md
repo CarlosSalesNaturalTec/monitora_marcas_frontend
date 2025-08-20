@@ -111,13 +111,15 @@ gcloud run deploy social-listening-frontend   --image gcr.io/[PROJECT_ID]/social
   - O acesso para edição é restrito a usuários com a permissão `ADM`. Usuários não-administradores visualizam os termos em modo somente leitura.
   - Inclui uma aba de **Preview** que utiliza a API do Google CSE para testar os termos configurados em tempo real, retornando uma lista de URLs e snippets de HTML correspondentes.
 
-- **Sistema/Monitorar (rota `/monitor`)**: Ferramenta para executar buscas ativas com os termos configurados e analisar os resultados.
-  - Realiza buscas na API do Google Custom Search Engine (CSE) para os termos de "Marca" e "Concorrentes".
-  - A busca é paginada, coletando até 100 resultados (10 páginas) para obter uma amostragem relevante.
-  - Os resultados de cada busca (metadados da execução e links encontrados) são armazenados em coleções separadas no Firestore para análise futura.
-  - A interface exibe os resultados da última coleta realizada, separando por abas de "Marca" e "Concorrentes".
-  - Para evitar coletas duplicadas ou acidentais, o botão para iniciar uma nova busca é desabilitado caso já exista uma coleta de dados.
-  - Oferece uma opção para **limpar os dados** da última coleta, permitindo que o usuário execute uma nova busca quando necessário.
-  - A funcionalidade está dividida em "Dados do Agora" (Etapa 01, implementada) e prevê uma futura visualização de "Dados do Passado" (Etapa 02).
-
-
+- **Sistema/Monitorar (rota `/monitor`)**: Ferramenta para executar buscas ativas com os termos configurados e analisar os resultados. A tela é dividida em duas abas principais:
+  - **Dados do Agora (Busca Relevante)**:
+    - Realiza buscas paginadas na API do Google para os termos de "Marca" e "Concorrentes", coletando os resultados mais recentes.
+    - Exibe os resultados da última coleta e os metadados associados (data, query, total de resultados).
+    - O botão para iniciar uma nova coleta é desabilitado se já existirem dados, prevenindo execuções duplicadas.
+    - Um botão "Limpar Coleta" permite remover os dados existentes para realizar uma nova busca.
+  - **Dados do Passado (Busca Histórica)**:
+    - Permite ao usuário selecionar uma data de início e disparar uma coleta retroativa de dados.
+    - O sistema busca dia a dia, desde a data informada até o presente, respeitando a cota diária de 100 requisições à API do Google.
+    - Os resultados são exibidos agrupados por dia de coleta.
+    - Caso a cota diária seja atingida, o processo é pausado e a interface informa ao usuário a partir de qual data a coleta poderá ser continuada.
+    - O botão para iniciar a coleta histórica é desabilitado se já houver dados históricos armazenados.
