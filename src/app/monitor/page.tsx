@@ -532,13 +532,17 @@ const MonitorPage = () => {
         </Alert>
       )}
 
-      <Tabs defaultValue="relevant">
-        <TabsList className="grid w-full grid-cols-3 max-w-lg mb-4">
+      <Tabs defaultValue="summary">
+        <TabsList className="grid w-full grid-cols-3 max-w-2xl mb-4">
+          <TabsTrigger value="summary">Resumo e Logs</TabsTrigger>
           <TabsTrigger value="relevant">Dados do Agora (Relevante)</TabsTrigger>
           <TabsTrigger value="historical">Dados do Passado (Histórico)</TabsTrigger>
-          <TabsTrigger value="summary">Resumo e Logs</TabsTrigger>
         </TabsList>
         
+        <TabsContent value="summary">
+          <SummaryTabContent />
+        </TabsContent>
+
         <TabsContent value="relevant">
           <Tabs defaultValue="brand">
             <TabsList>
@@ -556,10 +560,6 @@ const MonitorPage = () => {
         
         <TabsContent value="historical">
           <HistoricalTabContent />
-        </TabsContent>
-
-        <TabsContent value="summary">
-          <SummaryTabContent />
         </TabsContent>
       </Tabs>
     </div>
