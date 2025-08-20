@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  runMonitorSearch, getLatestMonitorData, deleteLatestMonitorData, MonitorData,
+  runMonitorSearch, getLatestMonitorData, deleteAllMonitorData, MonitorData,
   getHistoricalMonitorData, runHistoricalMonitorSearch, HistoricalMonitorData 
 } from '@/lib/api';
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, PlayCircle, Info, Trash2, History } from 'lucide-react';
+import { Loader2, PlayCircle, Info, Trash2, History, AlertTriangle } from 'lucide-react';
 import { toast } from "react-hot-toast";
 import { format, isValid } from 'date-fns';
 
@@ -37,7 +37,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ data, isLoading }) => {
         <Info className="h-4 w-4" />
         <AlertTitle>Nenhuma Coleta Encontrada</AlertTitle>
         <AlertDescription>
-          Ainda não foi realizada nenhuma coleta de dados para este grupo. Clique em "Iniciar Nova Coleta" para buscar os dados mais recentes.
+          Ainda não foi realizada nenhuma coleta de dados para este grupo. Clique em "Coleta do Agora" para buscar os dados mais recentes.
         </AlertDescription>
       </Alert>
     );
@@ -211,7 +211,6 @@ const HistoricalTabContent = () => {
       toast.error("Data inválida. Use o formato AAAA-MM-DD.");
       return;
     }
-    // A API espera YYYY-MM-DD, e o input type="date" já fornece isso.
     mutation.mutate({ start_date: startDate });
   };
 
@@ -249,7 +248,7 @@ const HistoricalTabContent = () => {
                     <Info className="h-4 w-4 text-blue-600" />
                     <AlertTitle>Coleta Histórica já Realizada</AlertTitle>
                     <AlertDescription>
-                        Já existem dados históricos. Para realizar uma nova coleta, os dados existentes precisam ser removidos (funcionalidade a ser implementada).
+                        Já existem dados históricos. Para realizar uma nova coleta, todos os dados (relevantes e históricos) devem ser limpos na aba "Dados do Agora".
                     </AlertDescription>
                 </Alert>
             </CardContent>
@@ -284,6 +283,12 @@ const MonitorPage = () => {
     queryFn: getLatestMonitorData,
     enabled: !!user,
   });
+  
+  const { data: historicalData } = useQuery({
+    queryKey: ['historicalMonitorData'],
+    queryFn: getHistoricalMonitorData,
+    enabled: !!user,
+  });
 
   const runMutation = useMutation({
     mutationFn: runMonitorSearch,
@@ -297,10 +302,11 @@ const MonitorPage = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: deleteLatestMonitorData,
+    mutationFn: deleteAllMonitorData,
     onSuccess: () => {
-      toast.success("Dados da coleta anterior foram limpos!");
+      toast.success("Todos os dados de monitoramento foram limpos!");
       queryClient.invalidateQueries({ queryKey: ['latestMonitorData'] });
+      queryClient.invalidateQueries({ queryKey: ['historicalMonitorData'] });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.detail || "Falha ao limpar os dados.");
@@ -309,12 +315,14 @@ const MonitorPage = () => {
 
   const handleRunMonitoring = () => runMutation.mutate();
   const handleDeleteData = () => {
-    if (window.confirm("Tem certeza? Esta ação não pode ser desfeita.")) {
+    if (window.confirm("ATENÇÃO: Esta ação é irreversível e excluirá TODOS os dados de monitoramento, incluindo o histórico completo. Deseja continuar?")) {
       deleteMutation.mutate();
     }
   };
 
-  const hasExistingData = !!(latestData?.brand || latestData?.competitors);
+  const hasRelevantData = !!(latestData?.brand || latestData?.competitors);
+  const hasHistoricalData = !!(historicalData?.brand?.length || historicalData?.competitors?.length);
+  const hasAnyData = hasRelevantData || hasHistoricalData;
   const isMutating = runMutation.isPending || deleteMutation.isPending;
 
   if (authLoading || (isQueryLoading && !latestData)) {
@@ -335,25 +343,35 @@ const MonitorPage = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={handleRunMonitoring} disabled={isMutating || hasExistingData}>
+          <Button onClick={handleRunMonitoring} disabled={isMutating || hasRelevantData}>
             {runMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlayCircle className="mr-2 h-4 w-4" />}
             {runMutation.isPending ? 'Coletando...' : 'Coleta do Agora'}
           </Button>
-          {hasExistingData && (
+          {user?.role === 'ADM' && hasAnyData && (
             <Button variant="destructive" onClick={handleDeleteData} disabled={isMutating}>
               {deleteMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-              {deleteMutation.isPending ? 'Limpando...' : 'Limpar Coleta'}
+              {deleteMutation.isPending ? 'Limpando...' : 'Limpar Todos os Dados'}
             </Button>
           )}
         </div>
       </div>
 
-      {hasExistingData && (
+      {hasRelevantData && (
         <Alert variant="default" className="mb-6 bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
           <Info className="h-4 w-4 text-blue-600" />
           <AlertTitle>Coleta "do Agora" já Realizada</AlertTitle>
           <AlertDescription>
-            Os dados abaixo são da última coleta de dados relevantes. Para realizar uma nova busca, clique em "Limpar Coleta".
+            Os dados abaixo são da última coleta de dados relevantes. Para realizar uma nova busca, é preciso limpar todos os dados existentes.
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {!hasAnyData && !isQueryLoading && (
+         <Alert variant="destructive" className="mb-6">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Banco de Dados Vazio</AlertTitle>
+          <AlertDescription>
+            Nenhum dado de monitoramento encontrado. Inicie uma "Coleta do Agora" ou uma "Coleta Histórica" para começar.
           </AlertDescription>
         </Alert>
       )}
