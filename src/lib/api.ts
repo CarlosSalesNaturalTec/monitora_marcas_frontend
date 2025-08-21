@@ -162,14 +162,17 @@ export interface UnifiedMonitorResult {
 
 // --- NEW Types for Monitor Summary ---
 
-export interface RunSummary {
+export interface MonitorRunDetails {
   id: string;
+  search_terms_query: string;
   search_group: 'brand' | 'competitors';
   search_type: "relevante" | "historico" | "continuo";
-  collected_at: string;
   total_results_found: number;
-  search_terms_query: string;
+  collected_at: string;
   range_start?: string;
+  range_end?: string;
+  last_interruption_date?: string;
+  historical_run_start_date?: string;
 }
 
 export interface RequestLog {
@@ -186,8 +189,9 @@ export interface MonitorSummary {
   total_results_saved: number;
   runs_by_type: Record<string, number>;
   results_by_group: Record<string, number>;
-  latest_runs: RunSummary[];
   latest_logs: RequestLog[];
+  brand_search_query?: string;
+  competitors_search_query?: string;
 }
 
 export interface HistoricalStatus {
@@ -257,6 +261,16 @@ export const updateHistoricalStartDate = async (data: UpdateHistoricalStartDateD
     return response.data;
   } catch (error) {
     console.error("Erro ao atualizar a data de início histórica:", error);
+    throw error;
+  }
+};
+
+export const getMonitorRunDetails = async (runId: string): Promise<MonitorRunDetails> => {
+  try {
+    const response = await apiClient.get(`/monitor/run/${runId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Erro ao buscar detalhes da execução ${runId}:`, error);
     throw error;
   }
 };

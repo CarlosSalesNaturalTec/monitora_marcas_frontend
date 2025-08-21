@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   runMonitorSearch, deleteAllMonitorData,
   getMonitorSummary, getAllMonitorResults, UnifiedMonitorResult,
-  getHistoricalStatus, updateHistoricalStartDate
+  getHistoricalStatus, updateHistoricalStartDate, getMonitorRunDetails, MonitorRunDetails
 } from '@/lib/api';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { 
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle 
+} from "@/components/ui/dialog";
 import { Loader2, PlayCircle, Info, Trash2, AlertTriangle, FileText, BarChart, Edit } from 'lucide-react';
 import { toast } from "react-hot-toast";
 import { format, isValid } from 'date-fns';
@@ -90,10 +93,30 @@ const AllDataTabContent = () => {
 // --- Subcomponente: Conteúdo da Aba Resumo e Logs ---
 
 const SummaryTabContent = () => {
+  const [selectedRun, setSelectedRun] = useState<MonitorRunDetails | null>(null);
+  const [isRunLoading, setIsRunLoading] = useState(false);
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ['monitorSummary'],
     queryFn: getMonitorSummary,
   });
+
+  const handleLogRowClick = async (runId: string) => {
+    if (!runId) return;
+    setIsRunLoading(true);
+    // Abre o dialog imediatamente, mesmo antes dos dados chegarem
+    setSelectedRun({ id: runId } as MonitorRunDetails); 
+    try {
+      const runDetails = await getMonitorRunDetails(runId);
+      setSelectedRun(runDetails);
+    } catch (error) {
+      toast.error("Não foi possível carregar os detalhes da execução.");
+      setSelectedRun(null); // Fecha o dialog em caso de erro
+    } finally {
+      setIsRunLoading(false);
+    }
+  };
+
 
   if (isLoading) {
     return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /> <span className="ml-2">Carregando resumo...</span></div>;
@@ -113,137 +136,141 @@ const SummaryTabContent = () => {
 
   const {
     total_runs, total_requests, total_results_saved,
-    runs_by_type, results_by_group, latest_runs, latest_logs
+    runs_by_type, results_by_group, latest_logs,
+    brand_search_query, competitors_search_query
   } = data;
 
   return (
-    <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <>
+      <Dialog open={!!selectedRun} onOpenChange={(isOpen) => !isOpen && setSelectedRun(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Detalhes da Execução</DialogTitle>
+            <DialogDescription>
+              Informações detalhadas sobre a execução de monitoramento selecionada.
+            </DialogDescription>
+          </DialogHeader>
+          {isRunLoading || !selectedRun?.search_type ? (
+            <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+          ) : (
+            <div className="text-sm space-y-2 break-words">
+              <p><strong>ID:</strong> <span className="font-mono text-xs">{selectedRun.id}</span></p>
+              <p><strong>Tipo:</strong> <Badge variant="outline">{selectedRun.search_type}</Badge></p>
+              <p><strong>Grupo:</strong> <Badge variant={selectedRun.search_group === 'brand' ? 'default' : 'secondary'}>{selectedRun.search_group === 'brand' ? 'Marca' : 'Concorrente'}</Badge></p>
+              <p><strong>Data:</strong> {format(new Date(selectedRun.collected_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}</p>
+              <p><strong>Resultados Encontrados:</strong> {selectedRun.total_results_found}</p>
+              {selectedRun.range_start && <p><strong>Período da Busca:</strong> {format(new Date(selectedRun.range_start), "dd/MM/yyyy", { locale: ptBR })}</p>}
+              <div>
+                <p className="font-semibold">Query:</p>
+                <p className="font-mono text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded-md break-all block">{selectedRun.search_terms_query}</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <div className="space-y-6">
+        {/* Stats Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total de Execuções</CardTitle>
+              <PlayCircle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{total_runs}</div>
+              <p className="text-xs text-muted-foreground">
+                {runs_by_type.relevante || 0} Relevante, {runs_by_type.historico || 0} Histórico, {runs_by_type.continuo || 0} Contínuo
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total de Requisições</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{total_requests}</div>
+              <p className="text-xs text-muted-foreground">Requisições à API do Google</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Resultados Salvos</CardTitle>
+              <BarChart className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{total_results_saved}</div>
+              <p className="text-xs text-muted-foreground">
+                {results_by_group.brand || 0} Marca, {results_by_group.competitors || 0} Concorrentes
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Search Terms Display */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Execuções</CardTitle>
-            <PlayCircle className="h-4 w-4 text-muted-foreground" />
+          <CardHeader>
+            <CardTitle>Termos de Busca Utilizados</CardTitle>
+            <CardDescription>As queries de busca mais recentes utilizadas para marca e concorrentes.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{total_runs}</div>
-            <p className="text-xs text-muted-foreground">
-              {runs_by_type.relevante || 0} Relevante, {runs_by_type.historico || 0} Histórico, {runs_by_type.continuo || 0} Contínuo
-            </p>
+            <div className="text-sm text-muted-foreground space-y-4">
+                {brand_search_query ? (
+                    <div>
+                        <p className="font-semibold">Termos de busca para "Marca":</p>
+                        <p className="font-mono text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded-md break-all">{brand_search_query}</p>
+                    </div>
+                ) : <p>Nenhuma busca para "Marca" foi executada ainda.</p>}
+                {competitors_search_query ? (
+                    <div>
+                        <p className="font-semibold">Termos de busca para "Concorrentes":</p>
+                        <p className="font-mono text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded-md break-all">{competitors_search_query}</p>
+                    </div>
+                ) : <p>Nenhuma busca para "Concorrentes" foi executada ainda.</p>}
+            </div>
           </CardContent>
         </Card>
+
+        {/* Latest Logs Table */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Requisições</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+          <CardHeader>
+            <CardTitle>Logs de Requisições Recentes</CardTitle>
+            <CardDescription>Os 100 logs de requisição mais recentes. Clique em uma linha para ver os detalhes da execução.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{total_requests}</div>
-            <p className="text-xs text-muted-foreground">Requisições à API do Google</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Resultados Salvos</CardTitle>
-            <BarChart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{total_results_saved}</div>
-            <p className="text-xs text-muted-foreground">
-              {results_by_group.brand || 0} Marca, {results_by_group.competitors || 0} Concorrentes
-            </p>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Timestamp</TableHead>
+                  <TableHead>Run ID</TableHead>
+                  <TableHead>Grupo</TableHead>
+                  <TableHead>Página</TableHead>
+                  <TableHead>Resultados na Página</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {latest_logs.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center">Nenhum log encontrado.</TableCell>
+                  </TableRow>
+                ) : (
+                  latest_logs.map((log, index) => (
+                    <TableRow key={`${log.run_id}-${log.page}-${index}`} onClick={() => handleLogRowClick(log.run_id)} className="cursor-pointer">
+                      <TableCell>{format(new Date(log.timestamp), "dd/MM/yy HH:mm:ss", { locale: ptBR })}</TableCell>
+                      <TableCell className="font-mono text-xs truncate max-w-[100px]"><span title={log.run_id}>{log.run_id}</span></TableCell>
+                      <TableCell>{log.search_group}</TableCell>
+                      <TableCell>{log.page}</TableCell>
+                      <TableCell>{log.results_count}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       </div>
-
-      {/* Latest Runs Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Últimas Execuções</CardTitle>
-          <CardDescription>As 50 execuções de monitoramento mais recentes.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm text-muted-foreground mb-4 space-y-2">
-                {latest_runs.find(run => run.search_group === 'brand')?.search_terms_query && (
-                    <div>
-                        <p className="font-semibold">Termos de busca para "Marca":</p>
-                        <p className="font-mono text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded-md break-all">{latest_runs.find(run => run.search_group === 'brand')?.search_terms_query}</p>
-                    </div>
-                )}
-                {latest_runs.find(run => run.search_group === 'competitors')?.search_terms_query && (
-                    <div>
-                        <p className="font-semibold">Termos de busca para "Concorrentes":</p>
-                        <p className="font-mono text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded-md break-all">{latest_runs.find(run => run.search_group === 'competitors')?.search_terms_query}</p>
-                    </div>
-                )}
-            </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Grupo</TableHead>
-                <TableHead>Resultados</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {latest_runs.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center">Nenhuma execução encontrada.</TableCell>
-                </TableRow>
-              ) : (
-                latest_runs.map(run => (
-                  <TableRow key={run.id}>
-                    <TableCell>{format(new Date(run.collected_at), "dd/MM/yy HH:mm", { locale: ptBR })}</TableCell>
-                    <TableCell><Badge variant="outline">{run.search_type}</Badge></TableCell>
-                    <TableCell>{run.search_group}</TableCell>
-                    <TableCell>{run.total_results_found}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Latest Logs Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Logs de Requisições Recentes</CardTitle>
-          <CardDescription>Os 100 logs de requisição mais recentes.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Timestamp</TableHead>
-                <TableHead>Run ID</TableHead>
-                <TableHead>Grupo</TableHead>
-                <TableHead>Página</TableHead>
-                <TableHead>Resultados na Página</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-               {latest_logs.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center">Nenhum log encontrado.</TableCell>
-                </TableRow>
-              ) : (
-                latest_logs.map((log, index) => (
-                  <TableRow key={`${log.run_id}-${log.page}-${index}`}>
-                    <TableCell>{format(new Date(log.timestamp), "dd/MM/yy HH:mm:ss", { locale: ptBR })}</TableCell>
-                    <TableCell className="font-mono text-xs truncate max-w-[100px]"><span title={log.run_id}>{log.run_id}</span></TableCell>
-                    <TableCell>{log.search_group}</TableCell>
-                    <TableCell>{log.page}</TableCell>
-                    <TableCell>{log.results_count}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
+    </>
   );
 };
 
