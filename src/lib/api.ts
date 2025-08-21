@@ -212,9 +212,10 @@ export interface MonitorSummary {
   latest_logs: RequestLog[];
 }
 
-export const runMonitorSearch = async (): Promise<Record<string, MonitorData>> => {
+export const runMonitorSearch = async (data?: HistoricalRunRequest): Promise<Record<string, MonitorData> | { message: string }> => {
   try {
-    const response = await apiClient.post('/monitor/run');
+    // O endpoint agora é o mesmo, mas aceita um corpo opcional com a start_date
+    const response = await apiClient.post('/monitor/run', data);
     return response.data;
   } catch (error) {
     console.error("Erro ao iniciar a coleta de monitoramento:", error);
@@ -243,15 +244,6 @@ export const deleteAllMonitorData = async (): Promise<{ message: string }> => {
 };
 
 // Funções para Coleta Histórica
-export const runHistoricalMonitorSearch = async (data: HistoricalRunRequest): Promise<{ message: string }> => {
-  try {
-    const response = await apiClient.post('/monitor/run/historical', data);
-    return response.data;
-  } catch (error) {
-    console.error("Erro ao iniciar a coleta histórica:", error);
-    throw error;
-  }
-};
 
 export const getHistoricalMonitorData = async (): Promise<HistoricalMonitorData> => {
   try {
