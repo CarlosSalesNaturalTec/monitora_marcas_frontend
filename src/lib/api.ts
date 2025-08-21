@@ -190,6 +190,17 @@ export interface MonitorSummary {
   latest_logs: RequestLog[];
 }
 
+export interface HistoricalStatus {
+  is_running: boolean;
+  last_processed_date?: string; // YYYY-MM-DD
+  original_start_date?: string; // YYYY-MM-DD
+  message: string;
+}
+
+export interface UpdateHistoricalStartDateData {
+  new_start_date: string; // YYYY-MM-DD
+}
+
 export const runMonitorSearch = async (data: HistoricalRunRequest): Promise<{ message: string }> => {
   try {
     const response = await apiClient.post('/monitor/run', data);
@@ -226,6 +237,26 @@ export const getMonitorSummary = async (): Promise<MonitorSummary> => {
     return response.data;
   } catch (error) {
     console.error("Erro ao buscar o resumo do monitoramento:", error);
+    throw error;
+  }
+};
+
+export const getHistoricalStatus = async (): Promise<HistoricalStatus> => {
+  try {
+    const response = await apiClient.get('/monitor/historical-status');
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao buscar status da coleta histórica:", error);
+    throw error;
+  }
+};
+
+export const updateHistoricalStartDate = async (data: UpdateHistoricalStartDateData): Promise<{ message: string }> => {
+  try {
+    const response = await apiClient.post('/monitor/update-historical-start-date', data);
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao atualizar a data de início histórica:", error);
     throw error;
   }
 };

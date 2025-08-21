@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   runMonitorSearch, deleteAllMonitorData,
-  getMonitorSummary, getAllMonitorResults, UnifiedMonitorResult
+  getMonitorSummary, getAllMonitorResults, UnifiedMonitorResult,
+  getHistoricalStatus, updateHistoricalStartDate
 } from '@/lib/api';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,9 +16,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, PlayCircle, Info, Trash2, AlertTriangle, FileText, BarChart } from 'lucide-react';
+import { Loader2, PlayCircle, Info, Trash2, AlertTriangle, FileText, BarChart, Edit } from 'lucide-react';
 import { toast } from "react-hot-toast";
 import { format, isValid } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 // --- Subcomponente: Conteúdo da Aba de Dados Unificados ---
 
@@ -67,7 +69,7 @@ const AllDataTabContent = () => {
                 </TableCell>
                 <TableCell><Badge variant="secondary">{item.search_type}</Badge></TableCell>
                 <TableCell>
-                  {format(new Date(item.range_start || item.collected_at), 'dd/MM/yyyy')}
+                  {format(new Date(item.range_start || item.collected_at), 'dd/MM/yyyy', { locale: ptBR })}
                 </TableCell>
                 <TableCell><div dangerouslySetInnerHTML={{ __html: item.htmlSnippet }} /></TableCell>
               </TableRow>
@@ -76,32 +78,6 @@ const AllDataTabContent = () => {
         </Table>
       </CardContent>
     </Card>
-  );
-};
-
-// --- Subcomponente: Conteúdo da Aba Histórico ---
-
-const HistoricalTabContent = () => {
-  const { data: historicalData, isLoading: isQueryLoading } = useQuery({
-    queryKey: ['historicalMonitorData'],
-    queryFn: getHistoricalMonitorData,
-  });
-
-  return (
-    <div className="space-y-6">
-      <Tabs defaultValue="brand">
-        <TabsList>
-          <TabsTrigger value="brand">Marca</TabsTrigger>
-          <TabsTrigger value="competitors">Concorrentes</TabsTrigger>
-        </TabsList>
-        <TabsContent value="brand" className="mt-4">
-          <HistoricalDisplay data={historicalData?.brand} isLoading={isQueryLoading} groupName="Marca" />
-        </TabsContent>
-        <TabsContent value="competitors" className="mt-4">
-          <HistoricalDisplay data={historicalData?.competitors} isLoading={isQueryLoading} groupName="Concorrentes" />
-        </TabsContent>
-      </Tabs>
-    </div>
   );
 };
 
@@ -199,7 +175,7 @@ const SummaryTabContent = () => {
               ) : (
                 latest_runs.map(run => (
                   <TableRow key={run.id}>
-                    <TableCell>{format(new Date(run.collected_at), "dd/MM/yy HH:mm")}</TableCell>
+                    <TableCell>{format(new Date(run.collected_at), "dd/MM/yy HH:mm", { locale: ptBR })}</TableCell>
                     <TableCell><Badge variant="outline">{run.search_type}</Badge></TableCell>
                     <TableCell>{run.search_group}</TableCell>
                     <TableCell>{run.total_results_found}</TableCell>
@@ -237,7 +213,7 @@ const SummaryTabContent = () => {
               ) : (
                 latest_logs.map((log, index) => (
                   <TableRow key={`${log.run_id}-${log.page}-${index}`}>
-                    <TableCell>{format(new Date(log.timestamp), "dd/MM/yy HH:mm:ss")}</TableCell>
+                    <TableCell>{format(new Date(log.timestamp), "dd/MM/yy HH:mm:ss", { locale: ptBR })}</TableCell>
                     <TableCell className="font-mono text-xs truncate max-w-[100px]"><span title={log.run_id}>{log.run_id}</span></TableCell>
                     <TableCell>{log.search_group}</TableCell>
                     <TableCell>{log.page}</TableCell>
@@ -259,30 +235,45 @@ const CollectionsTabContent = () => {
     const { user } = useAuth();
     const queryClient = useQueryClient();
     const [startDate, setStartDate] = useState('');
-    const [collectionStatus, setCollectionStatus] = useState('idle'); // idle, collecting, done, error
-    const [statusMessage, setStatusMessage] = useState('');
+    const [newStartDate, setNewStartDate] = useState('');
 
-    const { data: summaryData } = useQuery({
+    const { data: summaryData, isLoading: isSummaryLoading } = useQuery({
         queryKey: ['monitorSummary'],
         queryFn: getMonitorSummary,
     });
 
-    const collectionMutation = useMutation({
+    const { data: historicalStatus, isLoading: isStatusLoading } = useQuery({
+        queryKey: ['historicalStatus'],
+        queryFn: getHistoricalStatus,
+        enabled: !!summaryData && summaryData.total_runs > 0,
+    });
+
+    useEffect(() => {
+        if (historicalStatus?.original_start_date) {
+            setNewStartDate(historicalStatus.original_start_date);
+        }
+    }, [historicalStatus]);
+
+    const initialCollectionMutation = useMutation({
         mutationFn: runMonitorSearch,
         onSuccess: (data) => {
-            const message = (data as { message: string }).message || "Coleta concluída com sucesso!";
-            setStatusMessage(message);
-            toast.success(message);
-            queryClient.invalidateQueries({ queryKey: ['latestMonitorData'] });
-            queryClient.invalidateQueries({ queryKey: ['historicalMonitorData'] });
+            toast.success((data as { message: string }).message || "Coleta iniciada com sucesso!");
             queryClient.invalidateQueries({ queryKey: ['monitorSummary'] });
-            setCollectionStatus('done');
+            queryClient.invalidateQueries({ queryKey: ['historicalStatus'] });
         },
         onError: (error: any) => {
-            const detail = error.response?.data?.detail || "Ocorreu um erro durante a coleta.";
-            setCollectionStatus('error');
-            setStatusMessage(`Erro na coleta: ${detail}`);
-            toast.error(`Erro na coleta: ${detail}`);
+            toast.error(error.response?.data?.detail || "Ocorreu um erro ao iniciar a coleta.");
+        },
+    });
+
+    const updateDateMutation = useMutation({
+        mutationFn: updateHistoricalStartDate,
+        onSuccess: (data) => {
+            toast.success(data.message || "Data de início atualizada com sucesso!");
+            queryClient.invalidateQueries({ queryKey: ['historicalStatus'] });
+        },
+        onError: (error: any) => {
+            toast.error(error.response?.data?.detail || "Ocorreu um erro ao atualizar a data.");
         },
     });
 
@@ -290,18 +281,16 @@ const CollectionsTabContent = () => {
         mutationFn: deleteAllMonitorData,
         onSuccess: () => {
             toast.success("Todos os dados de monitoramento foram limpos!");
-            queryClient.invalidateQueries({ queryKey: ['latestMonitorData'] });
-            queryClient.invalidateQueries({ queryKey: ['historicalMonitorData'] });
             queryClient.invalidateQueries({ queryKey: ['monitorSummary'] });
-            setCollectionStatus('idle');
-            setStatusMessage('');
+            queryClient.invalidateQueries({ queryKey: ['historicalStatus'] });
+            queryClient.invalidateQueries({ queryKey: ['allMonitorResults'] });
         },
         onError: (error: any) => {
             toast.error(error.response?.data?.detail || "Falha ao limpar os dados.");
         },
     });
 
-    const handleRunCollection = () => {
+    const handleRunInitialCollection = () => {
         if (!startDate) {
             toast.error("Por favor, selecione uma data de início.");
             return;
@@ -311,9 +300,20 @@ const CollectionsTabContent = () => {
             toast.error("Data inválida. Use o formato AAAA-MM-DD.");
             return;
         }
-        setCollectionStatus('collecting');
-        setStatusMessage('Iniciando coleta... (Isso pode levar vários minutos)');
-        collectionMutation.mutate({ start_date: startDate });
+        initialCollectionMutation.mutate({ start_date: startDate });
+    };
+
+    const handleUpdateStartDate = () => {
+        if (!newStartDate) {
+            toast.error("Por favor, selecione uma nova data de início.");
+            return;
+        }
+        const dateObj = new Date(newStartDate);
+        if (!isValid(dateObj)) {
+            toast.error("Data inválida. Use o formato AAAA-MM-DD.");
+            return;
+        }
+        updateDateMutation.mutate({ new_start_date: newStartDate });
     };
 
     const handleDeleteData = () => {
@@ -322,60 +322,109 @@ const CollectionsTabContent = () => {
         }
     };
 
+    const isLoading = isSummaryLoading || isStatusLoading;
     const hasAnyData = summaryData ? summaryData.total_runs > 0 : false;
-    const isMutating = collectionMutation.isPending || deleteMutation.isPending;
+    const isMutating = initialCollectionMutation.isPending || deleteMutation.isPending || updateDateMutation.isPending;
+
+    if (isLoading) {
+        return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /> <span className="ml-2">Carregando status da coleta...</span></div>;
+    }
 
     return (
         <div className="space-y-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Iniciar Nova Coleta de Dados</CardTitle>
-                    <CardDescription>
-                        Este processo executa duas etapas: primeiro, busca os dados mais recentes (do agora) e, em seguida, busca os dados históricos a partir da data de início fornecida.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex flex-col sm:flex-row items-end gap-4">
-                        <div className="grid w-full max-w-sm items-center gap-1.5">
-                            <Label htmlFor="start-date">Data de Início da Busca Histórica</Label>
-                            <Input
-                                type="date"
-                                id="start-date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                disabled={isMutating || hasAnyData}
-                                max={new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split("T")[0]}
-                            />
+            {!hasAnyData ? (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Iniciar Primeira Coleta de Dados</CardTitle>
+                        <CardDescription>
+                            Este processo único buscará os dados mais recentes e iniciará a busca por dados históricos a partir da data fornecida. A continuação será automática e diária via agendamento no servidor.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-col sm:flex-row items-end gap-4">
+                            <div className="grid w-full max-w-sm items-center gap-1.5">
+                                <Label htmlFor="start-date">Data de Início da Busca Histórica</Label>
+                                <Input
+                                    type="date"
+                                    id="start-date"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                    disabled={isMutating}
+                                    max={new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split("T")[0]}
+                                />
+                            </div>
+                            <Button onClick={handleRunInitialCollection} disabled={isMutating}>
+                                {isMutating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlayCircle className="mr-2 h-4 w-4" />}
+                                {isMutating ? 'Iniciando...' : 'Iniciar Coleta'}
+                            </Button>
                         </div>
-                        <Button onClick={handleRunCollection} disabled={isMutating || hasAnyData}>
-                            {collectionMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlayCircle className="mr-2 h-4 w-4" />}
-                            {collectionMutation.isPending ? 'Coletando...' : 'Iniciar Coleta Completa'}
-                        </Button>
-                    </div>
-                     {collectionStatus !== 'idle' && (
-                        <div className="mt-4">
-                            <Alert variant={collectionStatus === 'error' ? 'destructive' : 'default'}>
-                                <Info className="h-4 w-4" />
-                                <AlertTitle>
-                                    {collectionStatus === 'collecting' && 'Coleta em Andamento'}
-                                    {collectionStatus === 'done' && 'Coleta Concluída'}
-                                    {collectionStatus === 'error' && 'Erro na Coleta'}
-                                </AlertTitle>
-                                <AlertDescription>{statusMessage}</AlertDescription>
+                        {initialCollectionMutation.isError && (
+                             <Alert variant="destructive" className="mt-4">
+                                <AlertTitle>Erro</AlertTitle>
+                                <AlertDescription>{(initialCollectionMutation.error as any).response?.data?.detail || initialCollectionMutation.error.message}</AlertDescription>
                             </Alert>
-                        </div>
-                     )}
-                     {hasAnyData && !isMutating && (
-                        <Alert variant="default" className="mt-4 bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
+                        )}
+                    </CardContent>
+                </Card>
+            ) : (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Status da Coleta de Dados</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <Alert variant="default" className="bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
                             <Info className="h-4 w-4 text-blue-600" />
-                            <AlertTitle>Coleta de Dados já Realizada</AlertTitle>
+                            <AlertTitle>
+                                {historicalStatus?.is_running ? "Busca Histórica em Andamento" : "Status da Busca Histórica"}
+                            </AlertTitle>
                             <AlertDescription>
-                                Já existem dados no sistema. Para realizar uma nova coleta completa, todos os dados existentes devem ser limpos primeiro.
+                                <p>A coleta de dados novos (últimas 24h) é executada automaticamente todos os dias.</p>
+                                {historicalStatus?.original_start_date && (
+                                    <p className="mt-2">
+                                        A busca por dados passados foi configurada para ir até{' '}
+                                        <strong>
+                                            {format(new Date(historicalStatus.original_start_date.replace(/-/g, '/')), 'dd/MM/yyyy', { locale: ptBR })}
+                                        </strong>.
+                                    </p>
+                                )}
+                                <p className="mt-2 font-semibold">{historicalStatus?.message || "Carregando status da busca histórica..."}</p>
                             </AlertDescription>
                         </Alert>
-                    )}
-                </CardContent>
-            </Card>
+
+                        {user?.role === 'ADM' && (
+                            <div className="pt-4 border-t">
+                                <h3 className="font-semibold mb-2 text-base">Alterar Data de Início Histórica</h3>
+                                <p className="text-sm text-muted-foreground mb-4">
+                                    Selecione uma nova data para reiniciar a busca histórica. Isso fará com que o sistema busque novamente os dados a partir da data escolhida, respeitando os limites diários.
+                                </p>
+                                <div className="flex flex-col sm:flex-row items-end gap-4">
+                                    <div className="grid w-full max-w-sm items-center gap-1.5">
+                                        <Label htmlFor="new-start-date">Nova Data de Início</Label>
+                                        <Input
+                                            type="date"
+                                            id="new-start-date"
+                                            value={newStartDate}
+                                            onChange={(e) => setNewStartDate(e.target.value)}
+                                            disabled={isMutating}
+                                            max={new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split("T")[0]}
+                                        />
+                                    </div>
+                                    <Button onClick={handleUpdateStartDate} disabled={isMutating} variant="secondary">
+                                        {updateDateMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit className="mr-2 h-4 w-4" />}
+                                        {updateDateMutation.isPending ? 'Atualizando...' : 'Atualizar Data'}
+                                    </Button>
+                                </div>
+                                {updateDateMutation.isError && (
+                                    <Alert variant="destructive" className="mt-4">
+                                        <AlertTitle>Erro</AlertTitle>
+                                        <AlertDescription>{(updateDateMutation.error as any).response?.data?.detail || updateDateMutation.error.message}</AlertDescription>
+                                    </Alert>
+                                )}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
 
             {user?.role === 'ADM' && (
                  <Card className="border-destructive">
