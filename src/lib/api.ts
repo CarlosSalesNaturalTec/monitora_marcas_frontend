@@ -137,47 +137,25 @@ export const adminDeleteUser = async (data: AdminUserDeleteData) => {
 
 // --- Tipos para Monitoramento ---
 
-export interface MonitorResultItem {
+export interface HistoricalRunRequest {
+  start_date: string; // Formato YYYY-MM-DD
+}
+
+// --- NEW Unified Types for Monitor Data ---
+
+export interface UnifiedMonitorResult {
   link: string;
   displayLink: string;
   title: string;
   snippet: string;
   htmlSnippet: string;
-  pagemap?: Record<string, any>;
-}
-
-export interface MonitorRun {
-  id?: string;
-  search_terms_query: string;
+  search_type: "relevante" | "historico" | "continuo";
   search_group: 'brand' | 'competitors';
-  search_type: "relevante" | "historico";
-  total_results_found: number;
-  collected_at: string; // Datas são strings no JSON
+  collected_at: string;
   range_start?: string;
   range_end?: string;
-  last_interruption_date?: string;
 }
 
-export interface MonitorData {
-  run_metadata: MonitorRun;
-  results: MonitorResultItem[];
-}
-
-// Tipos para "Dados do Agora"
-export interface LatestMonitorData {
-  brand?: MonitorData;
-  competitors?: MonitorData;
-}
-
-// Tipos para "Dados do Passado"
-export interface HistoricalMonitorData {
-  brand: MonitorData[];
-  competitors: MonitorData[];
-}
-
-export interface HistoricalRunRequest {
-  start_date: string; // Formato YYYY-MM-DD
-}
 
 
 // --- Funções de Monitoramento ---
@@ -212,9 +190,8 @@ export interface MonitorSummary {
   latest_logs: RequestLog[];
 }
 
-export const runMonitorSearch = async (data?: HistoricalRunRequest): Promise<Record<string, MonitorData> | { message: string }> => {
+export const runMonitorSearch = async (data: HistoricalRunRequest): Promise<{ message: string }> => {
   try {
-    // O endpoint agora é o mesmo, mas aceita um corpo opcional com a start_date
     const response = await apiClient.post('/monitor/run', data);
     return response.data;
   } catch (error) {
@@ -223,12 +200,12 @@ export const runMonitorSearch = async (data?: HistoricalRunRequest): Promise<Rec
   }
 };
 
-export const getLatestMonitorData = async (): Promise<LatestMonitorData> => {
+export const getAllMonitorResults = async (): Promise<UnifiedMonitorResult[]> => {
   try {
-    const response = await apiClient.get('/monitor/latest');
+    const response = await apiClient.get('/monitor/all-results');
     return response.data;
   } catch (error) {
-    console.error("Erro ao buscar os últimos dados de monitoramento:", error);
+    console.error("Erro ao buscar todos os resultados de monitoramento:", error);
     throw error;
   }
 };
@@ -239,18 +216,6 @@ export const deleteAllMonitorData = async (): Promise<{ message: string }> => {
     return response.data;
   } catch (error) {
     console.error("Erro ao excluir todos os dados de monitoramento:", error);
-    throw error;
-  }
-};
-
-// Funções para Coleta Histórica
-
-export const getHistoricalMonitorData = async (): Promise<HistoricalMonitorData> => {
-  try {
-    const response = await apiClient.get('/monitor/historical');
-    return response.data;
-  } catch (error) {
-    console.error("Erro ao buscar dados históricos:", error);
     throw error;
   }
 };

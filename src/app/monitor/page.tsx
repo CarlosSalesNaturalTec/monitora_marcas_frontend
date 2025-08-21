@@ -4,9 +4,8 @@ import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  runMonitorSearch, getLatestMonitorData, deleteAllMonitorData, MonitorData,
-  getHistoricalMonitorData, runHistoricalMonitorSearch, HistoricalMonitorData,
-  getMonitorSummary
+  runMonitorSearch, deleteAllMonitorData,
+  getMonitorSummary, getAllMonitorResults, UnifiedMonitorResult
 } from '@/lib/api';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,167 +15,67 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, PlayCircle, Info, Trash2, History, AlertTriangle, FileText, BarChart } from 'lucide-react';
+import { Loader2, PlayCircle, Info, Trash2, AlertTriangle, FileText, BarChart } from 'lucide-react';
 import { toast } from "react-hot-toast";
 import { format, isValid } from 'date-fns';
 
-// --- Subcomponente: Exibir Resultados (Relevante) ---
+// --- Subcomponente: Conteúdo da Aba de Dados Unificados ---
 
-interface ResultsDisplayProps {
-  data: MonitorData | undefined;
-  isLoading: boolean;
-}
+const AllDataTabContent = () => {
+  const { data, isLoading, isError } = useQuery<UnifiedMonitorResult[]>({
+    queryKey: ['allMonitorResults'],
+    queryFn: getAllMonitorResults,
+  });
 
-const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ data, isLoading }) => {
   if (isLoading) {
-    return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /> <span className="ml-2">Carregando dados...</span></div>;
+    return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /> <span className="ml-2">Carregando todos os dados...</span></div>;
   }
 
-  if (!data) {
-    return (
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertTitle>Nenhuma Coleta Encontrada</AlertTitle>
-        <AlertDescription>
-          Ainda não foi realizada nenhuma coleta de dados para este grupo. Clique em "Coleta do Agora" para buscar os dados mais recentes.
-        </AlertDescription>
-      </Alert>
-    );
+  if (isError) {
+    return <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Erro</AlertTitle><AlertDescription>Não foi possível carregar os dados.</AlertDescription></Alert>;
   }
-
-  const { run_metadata, results } = data;
-
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Informações da Coleta</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-          <div>
-            <p className="font-semibold">Data da Coleta</p>
-            <p>{format(new Date(run_metadata.collected_at), "dd/MM/yyyy 'às' HH:mm")}</p>
-          </div>
-          <div>
-            <p className="font-semibold">Resultados Encontrados</p>
-            <p>{run_metadata.total_results_found}</p>
-          </div>
-          <div className="col-span-2">
-            <p className="font-semibold">Query Utilizada</p>
-            <Badge variant="outline" className="whitespace-normal break-all">{run_metadata.search_terms_query}</Badge>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Resultados</CardTitle>
-          <CardDescription>Lista de links e snippets encontrados durante a coleta.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Link</TableHead>
-                <TableHead>Snippet</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {results.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={2} className="text-center">Nenhum resultado retornado pela busca.</TableCell>
-                </TableRow>
-              ) : (
-                results.map((item, index) => (
-                  <TableRow key={`${item.link}-${index}`}>
-                    <TableCell>
-                      <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
-                        {item.displayLink}
-                      </a>
-                    </TableCell>
-                    <TableCell>
-                      <div dangerouslySetInnerHTML={{ __html: item.htmlSnippet }} />
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-// --- Subcomponente: Exibir Resultados (Histórico) ---
-
-interface HistoricalDisplayProps {
-  data: MonitorData[] | undefined;
-  isLoading: boolean;
-  groupName: string;
-}
-
-const HistoricalDisplay: React.FC<HistoricalDisplayProps> = ({ data, isLoading, groupName }) => {
-  if (isLoading) {
-    return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /> <span className="ml-2">Carregando histórico...</span></div>;
-  }
-
+  
   if (!data || data.length === 0) {
-    return (
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertTitle>Nenhum Dado Histórico</AlertTitle>
-        <AlertDescription>
-          {`Nenhuma coleta histórica foi realizada para '${groupName}'. Vá para a aba 'Coletas' para iniciar uma.`}
-        </AlertDescription>
-      </Alert>
-    );
+    return <Alert><Info className="h-4 w-4" /><AlertTitle>Nenhum Dado Encontrado</AlertTitle><AlertDescription>Ainda não há dados de monitoramento. Vá para a aba "Coletas" para iniciar uma busca.</AlertDescription></Alert>;
   }
 
   return (
-    <div className="space-y-6">
-      {data.map((runData) => (
-        <Card key={runData.run_metadata.id}>
-          <CardHeader>
-            <CardTitle className="text-lg">
-              Resultados de {runData.run_metadata.range_start ? format(new Date(runData.run_metadata.range_start), 'dd/MM/yyyy') : 'Data Desconhecida'}
-            </CardTitle>
-            <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
-              <span>Resultados: <Badge variant="secondary">{runData.run_metadata.total_results_found}</Badge></span>
-              {runData.run_metadata.last_interruption_date && (
-                 <span className="text-amber-600">Interrompido em: <Badge variant="destructive">{format(new Date(runData.run_metadata.last_interruption_date), 'dd/MM/yyyy')}</Badge></span>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Link</TableHead>
-                  <TableHead>Snippet</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {runData.results.length === 0 ? (
-                  <TableRow><TableCell colSpan={2} className="text-center">Nenhum resultado encontrado para esta data.</TableCell></TableRow>
-                ) : (
-                  runData.results.map((item, index) => (
-                    <TableRow key={`${item.link}-${index}`}>
-                      <TableCell className="max-w-xs">
-                        <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
-                          {item.displayLink}
-                        </a>
-                      </TableCell>
-                      <TableCell><div dangerouslySetInnerHTML={{ __html: item.htmlSnippet }} /></TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Todos os Resultados</CardTitle>
+        <CardDescription>Lista consolidada de todos os resultados de coletas relevantes, históricas e contínuas.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[50px]">#</TableHead>
+              <TableHead>URL</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead>Data da Coleta</TableHead>
+              <TableHead>Snippet</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map((item, index) => (
+              <TableRow key={`${item.link}-${index}`}>
+                <TableCell>{index + 1}</TableCell>
+                <TableCell className="max-w-xs">
+                  <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
+                    {item.displayLink}
+                  </a>
+                </TableCell>
+                <TableCell><Badge variant="secondary">{item.search_type}</Badge></TableCell>
+                <TableCell>
+                  {format(new Date(item.range_start || item.collected_at), 'dd/MM/yyyy')}
+                </TableCell>
+                <TableCell><div dangerouslySetInnerHTML={{ __html: item.htmlSnippet }} /></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 };
 
@@ -505,28 +404,20 @@ const CollectionsTabContent = () => {
 // --- Componente Principal da Página ---
 
 const MonitorPage = () => {
-  const { user, loading: authLoading } = useAuth();
-  const queryClient = useQueryClient();
-
-  const { data: latestData, isLoading: isLatestLoading, isError: isLatestError } = useQuery({
-    queryKey: ['latestMonitorData'],
-    queryFn: getLatestMonitorData,
-    enabled: !!user,
-  });
+  const { loading: authLoading } = useAuth();
   
   const { data: summaryData, isLoading: isSummaryLoading, isError: isSummaryError } = useQuery({
     queryKey: ['monitorSummary'],
     queryFn: getMonitorSummary,
-    enabled: !!user,
   });
 
   const hasAnyData = summaryData ? summaryData.total_runs > 0 : false;
 
-  if (authLoading || (isSummaryLoading && !summaryData)) {
+  if (authLoading || isSummaryLoading) {
     return <div className="flex justify-center items-center h-screen">Carregando...</div>;
   }
 
-  if (isLatestError || isSummaryError) {
+  if (isSummaryError) {
     return <div className="flex justify-center items-center h-screen text-red-500">Erro ao carregar os dados de monitoramento.</div>;
   }
 
@@ -552,10 +443,9 @@ const MonitorPage = () => {
       )}
 
       <Tabs defaultValue="summary">
-        <TabsList className="grid w-full grid-cols-4 max-w-4xl mb-4">
+        <TabsList className="grid w-full grid-cols-3 max-w-2xl mb-4">
           <TabsTrigger value="summary">Resumo e Logs</TabsTrigger>
-          <TabsTrigger value="relevant">Dados do Agora (Relevante)</TabsTrigger>
-          <TabsTrigger value="historical">Dados do Passado (Histórico)</TabsTrigger>
+          <TabsTrigger value="data">Dados</TabsTrigger>
           <TabsTrigger value="collections">Coletas</TabsTrigger>
         </TabsList>
         
@@ -563,25 +453,10 @@ const MonitorPage = () => {
           <SummaryTabContent />
         </TabsContent>
 
-        <TabsContent value="relevant">
-          <Tabs defaultValue="brand">
-            <TabsList>
-              <TabsTrigger value="brand">Marca</TabsTrigger>
-              <TabsTrigger value="competitors">Concorrentes</TabsTrigger>
-            </TabsList>
-            <TabsContent value="brand" className="mt-4">
-              <ResultsDisplay data={latestData?.brand} isLoading={isLatestLoading} />
-            </TabsContent>
-            <TabsContent value="competitors" className="mt-4">
-              <ResultsDisplay data={latestData?.competitors} isLoading={isLatestLoading} />
-            </TabsContent>
-          </Tabs>
+        <TabsContent value="data">
+          <AllDataTabContent />
         </TabsContent>
         
-        <TabsContent value="historical">
-          <HistoricalTabContent />
-        </TabsContent>
-
         <TabsContent value="collections">
           <CollectionsTabContent />
         </TabsContent>
