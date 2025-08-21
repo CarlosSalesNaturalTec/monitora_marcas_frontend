@@ -53,6 +53,7 @@ const AllDataTabContent = () => {
             <TableRow>
               <TableHead className="w-[50px]">#</TableHead>
               <TableHead>URL</TableHead>
+              <TableHead>Grupo</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Data da Coleta</TableHead>
               <TableHead>Snippet</TableHead>
@@ -66,6 +67,11 @@ const AllDataTabContent = () => {
                   <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
                     {item.displayLink}
                   </a>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={item.search_group === 'brand' ? 'default' : 'outline'}>
+                    {item.search_group === 'brand' ? 'Marca' : 'Concorrente'}
+                  </Badge>
                 </TableCell>
                 <TableCell><Badge variant="secondary">{item.search_type}</Badge></TableCell>
                 <TableCell>
@@ -157,6 +163,20 @@ const SummaryTabContent = () => {
           <CardDescription>As 50 execuções de monitoramento mais recentes.</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="text-sm text-muted-foreground mb-4 space-y-2">
+                {latest_runs.find(run => run.search_group === 'brand')?.search_terms_query && (
+                    <div>
+                        <p className="font-semibold">Termos de busca para "Marca":</p>
+                        <p className="font-mono text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded-md break-all">{latest_runs.find(run => run.search_group === 'brand')?.search_terms_query}</p>
+                    </div>
+                )}
+                {latest_runs.find(run => run.search_group === 'competitors')?.search_terms_query && (
+                    <div>
+                        <p className="font-semibold">Termos de busca para "Concorrentes":</p>
+                        <p className="font-mono text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded-md break-all">{latest_runs.find(run => run.search_group === 'competitors')?.search_terms_query}</p>
+                    </div>
+                )}
+            </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -164,13 +184,12 @@ const SummaryTabContent = () => {
                 <TableHead>Tipo</TableHead>
                 <TableHead>Grupo</TableHead>
                 <TableHead>Resultados</TableHead>
-                <TableHead>Query</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {latest_runs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center">Nenhuma execução encontrada.</TableCell>
+                  <TableCell colSpan={4} className="text-center">Nenhuma execução encontrada.</TableCell>
                 </TableRow>
               ) : (
                 latest_runs.map(run => (
@@ -179,7 +198,6 @@ const SummaryTabContent = () => {
                     <TableCell><Badge variant="outline">{run.search_type}</Badge></TableCell>
                     <TableCell>{run.search_group}</TableCell>
                     <TableCell>{run.total_results_found}</TableCell>
-                    <TableCell className="max-w-xs truncate"><span title={run.search_terms_query}>{run.search_terms_query}</span></TableCell>
                   </TableRow>
                 ))
               )}
