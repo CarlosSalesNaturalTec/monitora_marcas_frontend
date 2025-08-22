@@ -144,6 +144,7 @@ export interface HistoricalRunRequest {
 // --- NEW Unified Types for Monitor Data ---
 
 export interface UnifiedMonitorResult {
+  run_id: string;
   link: string;
   displayLink: string;
   title: string;

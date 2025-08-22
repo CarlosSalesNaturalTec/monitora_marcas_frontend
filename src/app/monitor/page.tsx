@@ -56,6 +56,7 @@ const AllDataTabContent = () => {
             <TableRow>
               <TableHead className="w-[50px]">#</TableHead>
               <TableHead>URL</TableHead>
+              <TableHead>Run ID</TableHead>
               <TableHead>Grupo</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Data da Coleta</TableHead>
@@ -70,6 +71,9 @@ const AllDataTabContent = () => {
                   <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
                     {item.displayLink}
                   </a>
+                </TableCell>
+                <TableCell className="font-mono text-xs">
+                  <span title={item.run_id}>{item.run_id.substring(0, 8)}...</span>
                 </TableCell>
                 <TableCell>
                   <Badge variant={item.search_group === 'brand' ? 'default' : 'outline'}>
