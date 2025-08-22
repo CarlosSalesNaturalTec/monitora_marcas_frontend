@@ -6,7 +6,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   runMonitorSearch, deleteAllMonitorData,
   getMonitorSummary, getAllMonitorResults, UnifiedMonitorResult,
-  getHistoricalStatus, updateHistoricalStartDate, getMonitorRunDetails, MonitorRunDetails
+  getHistoricalStatus, updateHistoricalStartDate, getMonitorRunDetails, MonitorRunDetails,
+  getSystemStatus // Importar a nova função
 } from '@/lib/api';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { 
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle 
 } from "@/components/ui/dialog";
-import { Loader2, PlayCircle, Info, Trash2, AlertTriangle, FileText, BarChart, Edit } from 'lucide-react';
+import { Loader2, PlayCircle, Info, Trash2, AlertTriangle, FileText, BarChart, Edit, Power } from 'lucide-react';
 import { toast } from "react-hot-toast";
 import { format, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -108,14 +109,13 @@ const SummaryTabContent = () => {
   const handleLogRowClick = async (runId: string) => {
     if (!runId) return;
     setIsRunLoading(true);
-    // Abre o dialog imediatamente, mesmo antes dos dados chegarem
     setSelectedRun({ id: runId } as MonitorRunDetails); 
     try {
       const runDetails = await getMonitorRunDetails(runId);
       setSelectedRun(runDetails);
     } catch (error) {
       toast.error("Não foi possível carregar os detalhes da execução.");
-      setSelectedRun(null); // Fecha o dialog em caso de erro
+      setSelectedRun(null);
     } finally {
       setIsRunLoading(false);
     }
@@ -174,7 +174,6 @@ const SummaryTabContent = () => {
       </Dialog>
 
       <div className="space-y-6">
-        {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -212,7 +211,6 @@ const SummaryTabContent = () => {
           </Card>
         </div>
 
-        {/* Search Terms Display */}
         <Card>
           <CardHeader>
             <CardTitle>Termos de Busca Utilizados</CardTitle>
@@ -236,7 +234,6 @@ const SummaryTabContent = () => {
           </CardContent>
         </Card>
 
-        {/* Latest Logs Table */}
         <Card>
           <CardHeader>
             <CardTitle>Logs de Requisições Recentes</CardTitle>
@@ -297,6 +294,15 @@ const CollectionsTabContent = () => {
         enabled: !!summaryData && summaryData.total_runs > 0,
     });
 
+    const { data: systemStatus, isLoading: isSystemStatusLoading } = useQuery({
+        queryKey: ['systemStatus'],
+        queryFn: getSystemStatus,
+        refetchInterval: (query) => {
+            const data = query.state.data as { is_monitoring_running: boolean } | undefined;
+            return data?.is_monitoring_running ? 5000 : false;
+        },
+    });
+
     useEffect(() => {
         if (historicalStatus?.original_start_date) {
             setNewStartDate(historicalStatus.original_start_date);
@@ -306,9 +312,8 @@ const CollectionsTabContent = () => {
     const initialCollectionMutation = useMutation({
         mutationFn: runMonitorSearch,
         onSuccess: (data) => {
-            toast.success((data as { message: string }).message || "Coleta iniciada com sucesso!");
-            queryClient.invalidateQueries({ queryKey: ['monitorSummary'] });
-            queryClient.invalidateQueries({ queryKey: ['historicalStatus'] });
+            toast.success(data.message || "Coleta iniciada com sucesso!");
+            queryClient.invalidateQueries({ queryKey: ['systemStatus'] });
         },
         onError: (error: any) => {
             toast.error(error.response?.data?.detail || "Ocorreu um erro ao iniciar a coleta.");
@@ -330,9 +335,7 @@ const CollectionsTabContent = () => {
         mutationFn: deleteAllMonitorData,
         onSuccess: () => {
             toast.success("Todos os dados de monitoramento foram limpos!");
-            queryClient.invalidateQueries({ queryKey: ['monitorSummary'] });
-            queryClient.invalidateQueries({ queryKey: ['historicalStatus'] });
-            queryClient.invalidateQueries({ queryKey: ['allMonitorResults'] });
+            queryClient.invalidateQueries(); // Invalida todas as queries
         },
         onError: (error: any) => {
             toast.error(error.response?.data?.detail || "Falha ao limpar os dados.");
@@ -371,8 +374,9 @@ const CollectionsTabContent = () => {
         }
     };
 
-    const isLoading = isSummaryLoading || isStatusLoading;
+    const isLoading = isSummaryLoading || isStatusLoading || isSystemStatusLoading;
     const hasAnyData = summaryData ? summaryData.total_runs > 0 : false;
+    const isTaskRunning = systemStatus?.is_monitoring_running ?? false;
     const isMutating = initialCollectionMutation.isPending || deleteMutation.isPending || updateDateMutation.isPending;
 
     if (isLoading) {
@@ -381,6 +385,18 @@ const CollectionsTabContent = () => {
 
     return (
         <div className="space-y-6">
+            {isTaskRunning && (
+                <Alert variant="default" className="bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                    <AlertTitle>
+                        {systemStatus?.current_task || "Tarefa em Andamento"}
+                    </AlertTitle>
+                    <AlertDescription>
+                        {systemStatus?.message || "O sistema está processando uma tarefa de coleta de dados. As ações nesta página estão desabilitadas até a conclusão."}
+                    </AlertDescription>
+                </Alert>
+            )}
+
             {!hasAnyData ? (
                 <Card>
                     <CardHeader>
@@ -398,11 +414,11 @@ const CollectionsTabContent = () => {
                                     id="start-date"
                                     value={startDate}
                                     onChange={(e) => setStartDate(e.target.value)}
-                                    disabled={isMutating}
+                                    disabled={isMutating || isTaskRunning}
                                     max={new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split("T")[0]}
                                 />
                             </div>
-                            <Button onClick={handleRunInitialCollection} disabled={isMutating}>
+                            <Button onClick={handleRunInitialCollection} disabled={isMutating || isTaskRunning}>
                                 {isMutating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlayCircle className="mr-2 h-4 w-4" />}
                                 {isMutating ? 'Iniciando...' : 'Iniciar Coleta'}
                             </Button>
@@ -421,10 +437,10 @@ const CollectionsTabContent = () => {
                         <CardTitle>Status da Coleta de Dados</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <Alert variant="default" className="bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
-                            <Info className="h-4 w-4 text-blue-600" />
+                        <Alert variant="default" className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
+                            <Power className="h-4 w-4 text-green-600" />
                             <AlertTitle>
-                                {historicalStatus?.is_running ? "Busca Histórica em Andamento" : "Status da Busca Histórica"}
+                                {historicalStatus?.is_running ? "Busca Histórica em Andamento" : "Sistema Ativo"}
                             </AlertTitle>
                             <AlertDescription>
                                 <p>A coleta de dados novos (últimas 24h) é executada automaticamente todos os dias.</p>
@@ -454,11 +470,11 @@ const CollectionsTabContent = () => {
                                             id="new-start-date"
                                             value={newStartDate}
                                             onChange={(e) => setNewStartDate(e.target.value)}
-                                            disabled={isMutating}
+                                            disabled={isMutating || isTaskRunning}
                                             max={new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split("T")[0]}
                                         />
                                     </div>
-                                    <Button onClick={handleUpdateStartDate} disabled={isMutating} variant="secondary">
+                                    <Button onClick={handleUpdateStartDate} disabled={isMutating || isTaskRunning} variant="secondary">
                                         {updateDateMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit className="mr-2 h-4 w-4" />}
                                         {updateDateMutation.isPending ? 'Atualizando...' : 'Atualizar Data'}
                                     </Button>
@@ -484,7 +500,7 @@ const CollectionsTabContent = () => {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                         <Button variant="destructive" onClick={handleDeleteData} disabled={isMutating || !hasAnyData}>
+                         <Button variant="destructive" onClick={handleDeleteData} disabled={isMutating || isTaskRunning || !hasAnyData}>
                             {deleteMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
                             {deleteMutation.isPending ? 'Limpando...' : 'Limpar Todos os Dados'}
                         </Button>

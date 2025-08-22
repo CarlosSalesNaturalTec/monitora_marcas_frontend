@@ -141,8 +141,6 @@ export interface HistoricalRunRequest {
   start_date: string; // Formato YYYY-MM-DD
 }
 
-// --- NEW Unified Types for Monitor Data ---
-
 export interface UnifiedMonitorResult {
   run_id: string;
   link: string;
@@ -156,12 +154,6 @@ export interface UnifiedMonitorResult {
   range_start?: string;
   range_end?: string;
 }
-
-
-
-// --- Funções de Monitoramento ---
-
-// --- NEW Types for Monitor Summary ---
 
 export interface MonitorRunDetails {
   id: string;
@@ -202,9 +194,19 @@ export interface HistoricalStatus {
   message: string;
 }
 
+export interface SystemStatus {
+  is_monitoring_running: boolean;
+  current_task?: string;
+  task_start_time?: string;
+  last_completion_time?: string;
+  message?: string;
+}
+
 export interface UpdateHistoricalStartDateData {
   new_start_date: string; // YYYY-MM-DD
 }
+
+// --- Funções de Monitoramento ---
 
 export const runMonitorSearch = async (data: HistoricalRunRequest): Promise<{ message: string }> => {
   try {
@@ -252,6 +254,16 @@ export const getHistoricalStatus = async (): Promise<HistoricalStatus> => {
     return response.data;
   } catch (error) {
     console.error("Erro ao buscar status da coleta histórica:", error);
+    throw error;
+  }
+};
+
+export const getSystemStatus = async (): Promise<SystemStatus> => {
+  try {
+    const response = await apiClient.get('/monitor/system-status');
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao buscar status do sistema:", error);
     throw error;
   }
 };
