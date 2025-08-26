@@ -174,6 +174,8 @@ export interface RequestLog {
   page: number;
   results_count: number;
   timestamp: string;
+  search_type: "relevante" | "historico" | "continuo";
+  origin: string;
 }
 
 export interface MonitorSummary {

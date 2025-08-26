@@ -49,7 +49,7 @@ const AllDataTabContent = () => {
     <Card>
       <CardHeader>
         <CardTitle>Todos os Resultados</CardTitle>
-        <CardDescription>Lista consolidada de todos os resultados de coletas relevantes, históricas e contínuas.</CardDescription>
+        <CardDescription>Lista consolidada dos últimos 200 resultados de coletas relevantes, históricas e contínuas.</CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
@@ -247,22 +247,26 @@ const SummaryTabContent = () => {
                   <TableHead>Run ID</TableHead>
                   <TableHead>Grupo</TableHead>
                   <TableHead>Página</TableHead>
-                  <TableHead>Resultados na Página</TableHead>
+                  <TableHead>Resultados</TableHead>
+                  <TableHead>Tipo de Execução</TableHead>
+                  <TableHead>Origem</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {latest_logs.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center">Nenhum log encontrado.</TableCell>
+                    <TableCell colSpan={7} className="text-center">Nenhum log encontrado.</TableCell>
                   </TableRow>
                 ) : (
                   latest_logs.map((log, index) => (
                     <TableRow key={`${log.run_id}-${log.page}-${index}`} onClick={() => handleLogRowClick(log.run_id)} className="cursor-pointer">
                       <TableCell>{format(new Date(log.timestamp), "dd/MM/yy HH:mm:ss", { locale: ptBR })}</TableCell>
                       <TableCell className="font-mono text-xs truncate max-w-[100px]"><span title={log.run_id}>{log.run_id}</span></TableCell>
-                      <TableCell>{log.search_group}</TableCell>
+                      <TableCell>{log.search_group === 'brand' ? 'Marca' : 'Concorrente'}</TableCell>
                       <TableCell>{log.page}</TableCell>
                       <TableCell>{log.results_count}</TableCell>
+                      <TableCell><Badge variant="outline">{log.search_type}</Badge></TableCell>
+                      <TableCell className="font-mono text-xs">{log.origin}</TableCell>
                     </TableRow>
                   ))
                 )}
