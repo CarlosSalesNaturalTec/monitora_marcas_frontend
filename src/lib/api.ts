@@ -148,6 +148,7 @@ export interface UnifiedMonitorResult {
   title: string;
   snippet: string;
   htmlSnippet: string;
+  status: string;
   search_type: "relevante" | "historico" | "continuo";
   search_group: 'brand' | 'competitors';
   collected_at: string;

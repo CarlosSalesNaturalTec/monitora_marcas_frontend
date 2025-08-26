@@ -57,7 +57,7 @@ const AllDataTabContent = () => {
             <TableRow>
               <TableHead className="w-[50px]">#</TableHead>
               <TableHead>URL</TableHead>
-              <TableHead>Run ID</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Grupo</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Data da Coleta</TableHead>
@@ -73,8 +73,8 @@ const AllDataTabContent = () => {
                     {item.displayLink}
                   </a>
                 </TableCell>
-                <TableCell className="font-mono text-xs">
-                  <span title={item.run_id}>{item.run_id.substring(0, 8)}...</span>
+                <TableCell>
+                  <Badge variant="outline">{item.status}</Badge>
                 </TableCell>
                 <TableCell>
                   <Badge variant={item.search_group === 'brand' ? 'default' : 'outline'}>
@@ -85,7 +85,13 @@ const AllDataTabContent = () => {
                 <TableCell>
                   {format(new Date(item.range_start || item.collected_at), 'dd/MM/yyyy', { locale: ptBR })}
                 </TableCell>
-                <TableCell><div dangerouslySetInnerHTML={{ __html: item.htmlSnippet }} /></TableCell>
+                <TableCell className="max-w-sm">
+                  <div 
+                    className="truncate" 
+                    dangerouslySetInnerHTML={{ __html: item.htmlSnippet }} 
+                    title={item.snippet}
+                  />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
