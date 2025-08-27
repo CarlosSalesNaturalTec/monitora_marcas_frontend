@@ -619,7 +619,7 @@ const MonitorPage = () => {
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Monitoramento de Termos</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">Controle de Buscas</h1>
           <p className="text-muted-foreground mt-1">
             Acompanhe os resultados das coletas de dados para sua marca e concorrentes.
           </p>

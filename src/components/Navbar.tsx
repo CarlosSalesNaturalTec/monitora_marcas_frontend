@@ -49,25 +49,31 @@ export function Navbar() {
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end">                
+                {user.role === 'ADM' && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile">Termos de Pesquisa</Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuItem asChild>
-                  <Link href="/monitor">Monitorar</Link>
+                  <Link href="/monitor">Buscas</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/scraper">Scraper</Link>
                 </DropdownMenuItem>
-                {/* Links específicos para ADM */}
+                <DropdownMenuItem asChild>
+                  <Link href="/nlp">NLP</Link>
+                </DropdownMenuItem>                
+                <DropdownMenuSeparator />
                 {user.role === 'ADM' && (
-                  <>
-                    <DropdownMenuItem asChild>
-                      <Link href="/profile">Configurações</Link>
-                    </DropdownMenuItem>
+                  <>                   
                     <DropdownMenuItem asChild>
                       <Link href="/users">Usuários</Link>
                     </DropdownMenuItem>
                   </>
                 )}
-                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   Sair
                 </DropdownMenuItem>

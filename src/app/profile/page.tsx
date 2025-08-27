@@ -264,7 +264,7 @@ const PlatformSettingsPage = () => {
   };
 
   if (authLoading || termsLoading) {
-    return <div className="flex justify-center items-center h-screen">Carregando configurações...</div>;
+    return <div className="flex justify-center items-center h-screen">Carregando Termos de Pesquisa...</div>;
   }
   
   if (isError) {
@@ -275,7 +275,7 @@ const PlatformSettingsPage = () => {
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div>
-              <h1 className="text-2xl md:text-3xl font-bold">Configurações da Plataforma</h1>
+              <h1 className="text-2xl md:text-3xl font-bold">Termos de Pesquisa</h1>
               <p className="text-muted-foreground mt-1">
                 Gerencie os termos de pesquisa para o monitoramento.
                 {isReadOnly && " (Modo de visualização)"}
