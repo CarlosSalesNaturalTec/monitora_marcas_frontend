@@ -53,6 +53,9 @@ export function Navbar() {
                 <DropdownMenuItem asChild>
                   <Link href="/monitor">Monitorar</Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/scraper">Scraper</Link>
+                </DropdownMenuItem>
                 {/* Links específicos para ADM */}
                 {user.role === 'ADM' && (
                   <>

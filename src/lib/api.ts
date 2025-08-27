@@ -313,3 +313,14 @@ export const getSystemLogs = async (): Promise<SystemLog[]> => {
     throw error;
   }
 };
+
+export const getMonitorResultsByStatus = async (status: string): Promise<UnifiedMonitorResult[]> => {
+  if (!status) return []; // Don't fetch if status is empty
+  try {
+    const response = await apiClient.get(`/monitor/results-by-status/${status}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Erro ao buscar resultados com status ${status}:`, error);
+    throw error;
+  }
+};
