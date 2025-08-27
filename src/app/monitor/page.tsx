@@ -532,10 +532,10 @@ const SystemLogsTabContent = () => {
     queryFn: getSystemLogs,
   });
 
-  const formatTimestamp = (ts: SystemLogTimestamp) => {
-    if (!ts || typeof ts._seconds !== 'number') return 'N/A';
-    const date = new Date(ts._seconds * 1000 + (ts._nanoseconds || 0) / 1000000);
-    return format(date, 'dd/MM/yyyy HH:mm:ss', { locale: ptBR });
+  const formatTimestamp = (ts: string | null | undefined) => {
+    if (!ts) return 'N/A';
+    const date = new Date(ts);
+    return isValid(date) ? format(date, 'dd/MM/yyyy HH:mm:ss', { locale: ptBR }) : 'N/A';
   };
 
   if (isLoading) {
@@ -565,6 +565,7 @@ const SystemLogsTabContent = () => {
               <TableHead>Itens Processados</TableHead>
               <TableHead>Início</TableHead>
               <TableHead>Fim</TableHead>
+              <TableHead>Detalhes</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -572,13 +573,18 @@ const SystemLogsTabContent = () => {
               <TableRow key={index}>
                 <TableCell className="font-medium">{log.task}</TableCell>
                 <TableCell>
-                  <Badge variant={log.status === 'completed' ? 'default' : 'destructive'}>
+                  <Badge variant={log.status === 'completed' ? 'default' : log.status === 'in_progress' ? 'secondary' : 'destructive'}>
                     {log.status}
                   </Badge>
                 </TableCell>
                 <TableCell>{log.processed_count}</TableCell>
                 <TableCell>{formatTimestamp(log.start_time)}</TableCell>
                 <TableCell>{formatTimestamp(log.end_time)}</TableCell>
+                <TableCell className="text-xs text-muted-foreground max-w-xs truncate">
+                  <span title={log.error_message || log.message}>
+                    {log.error_message || log.message}
+                  </span>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

@@ -212,10 +212,12 @@ export interface SystemLogTimestamp {
 
 export interface SystemLog {
   task: string;
-  start_time: SystemLogTimestamp;
-  end_time: SystemLogTimestamp;
+  start_time: string;
+  end_time: string | null;
   processed_count: number;
   status: string;
+  error_message?: string;
+  message?: string;
 }
 
 export interface UpdateHistoricalStartDateData {
