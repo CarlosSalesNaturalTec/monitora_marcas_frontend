@@ -205,6 +205,19 @@ export interface SystemStatus {
   message?: string;
 }
 
+export interface SystemLogTimestamp {
+  _seconds: number;
+  _nanoseconds: number;
+}
+
+export interface SystemLog {
+  task: string;
+  start_time: SystemLogTimestamp;
+  end_time: SystemLogTimestamp;
+  processed_count: number;
+  status: string;
+}
+
 export interface UpdateHistoricalStartDateData {
   new_start_date: string; // YYYY-MM-DD
 }
@@ -287,6 +300,16 @@ export const getMonitorRunDetails = async (runId: string): Promise<MonitorRunDet
     return response.data;
   } catch (error) {
     console.error(`Erro ao buscar detalhes da execução ${runId}:`, error);
+    throw error;
+  }
+};
+
+export const getSystemLogs = async (): Promise<SystemLog[]> => {
+  try {
+    const response = await apiClient.get('/monitor/system-logs');
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao buscar os logs do sistema:", error);
     throw error;
   }
 };

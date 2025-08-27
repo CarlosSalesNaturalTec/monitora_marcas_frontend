@@ -7,7 +7,7 @@ import {
   runMonitorSearch, deleteAllMonitorData,
   getMonitorSummary, getAllMonitorResults, UnifiedMonitorResult,
   getHistoricalStatus, updateHistoricalStartDate, getMonitorRunDetails, MonitorRunDetails,
-  getSystemStatus // Importar a nova função
+  getSystemStatus, getSystemLogs, SystemLog, SystemLogTimestamp
 } from '@/lib/api';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -101,7 +101,7 @@ const AllDataTabContent = () => {
   );
 };
 
-// --- Subcomponente: Conteúdo da Aba Resumo e Logs ---
+// --- Subcomponente: Conteúdo da Aba Requisições ---
 
 const SummaryTabContent = () => {
   const [selectedRun, setSelectedRun] = useState<MonitorRunDetails | null>(null);
@@ -138,7 +138,7 @@ const SummaryTabContent = () => {
         <AlertTriangle className="h-4 w-4" />
         <AlertTitle>Erro ao Carregar Resumo</AlertTitle>
         <AlertDescription>
-          Não foi possível buscar os dados de resumo e logs. Tente novamente mais tarde.
+          Não foi possível buscar os dados de Requisições. Tente novamente mais tarde.
         </AlertDescription>
       </Alert>
     );
@@ -524,6 +524,70 @@ const CollectionsTabContent = () => {
     );
 };
 
+// --- Subcomponente: Conteúdo da Aba de System Logs ---
+
+const SystemLogsTabContent = () => {
+  const { data, isLoading, isError } = useQuery<SystemLog[]>({
+    queryKey: ['systemLogs'],
+    queryFn: getSystemLogs,
+  });
+
+  const formatTimestamp = (ts: SystemLogTimestamp) => {
+    if (!ts || typeof ts._seconds !== 'number') return 'N/A';
+    const date = new Date(ts._seconds * 1000 + (ts._nanoseconds || 0) / 1000000);
+    return format(date, 'dd/MM/yyyy HH:mm:ss', { locale: ptBR });
+  };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /> <span className="ml-2">Carregando logs do sistema...</span></div>;
+  }
+
+  if (isError) {
+    return <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Erro</AlertTitle><AlertDescription>Não foi possível carregar os logs do sistema.</AlertDescription></Alert>;
+  }
+  
+  if (!data || data.length === 0) {
+    return <Alert><Info className="h-4 w-4" /><AlertTitle>Nenhum Log Encontrado</AlertTitle><AlertDescription>Ainda não há logs de sistema para exibir.</AlertDescription></Alert>;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Logs do Sistema</CardTitle>
+        <CardDescription>Logs recentes gerados pelas tarefas automatizadas do sistema.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Tarefa</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Itens Processados</TableHead>
+              <TableHead>Início</TableHead>
+              <TableHead>Fim</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map((log, index) => (
+              <TableRow key={index}>
+                <TableCell className="font-medium">{log.task}</TableCell>
+                <TableCell>
+                  <Badge variant={log.status === 'completed' ? 'default' : 'destructive'}>
+                    {log.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>{log.processed_count}</TableCell>
+                <TableCell>{formatTimestamp(log.start_time)}</TableCell>
+                <TableCell>{formatTimestamp(log.end_time)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+};
+
 
 // --- Componente Principal da Página ---
 
@@ -567,10 +631,11 @@ const MonitorPage = () => {
       )}
 
       <Tabs defaultValue="summary">
-        <TabsList className="grid w-full grid-cols-3 max-w-2xl mb-4">
-          <TabsTrigger value="summary">Resumo e Logs</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4 max-w-2xl mb-4">
+          <TabsTrigger value="summary">Requisições</TabsTrigger>
           <TabsTrigger value="data">Dados</TabsTrigger>
           <TabsTrigger value="collections">Coletas</TabsTrigger>
+          <TabsTrigger value="system-logs">System Logs</TabsTrigger>
         </TabsList>
         
         <TabsContent value="summary">
@@ -583,6 +648,10 @@ const MonitorPage = () => {
         
         <TabsContent value="collections">
           <CollectionsTabContent />
+        </TabsContent>
+
+        <TabsContent value="system-logs">
+          <SystemLogsTabContent />
         </TabsContent>
       </Tabs>
     </div>
