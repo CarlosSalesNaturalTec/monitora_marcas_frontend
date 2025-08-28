@@ -24,6 +24,7 @@ const ScraperPage = () => {
   const statusOptions = [
     { value: 'pending', label: 'Pendente' },
     { value: 'reprocess', label: 'Reprocessar' },
+    { value: 'scraper_ok', label: 'Scraper OK' },
     { value: 'scraper_failed', label: 'Falha no Scraper' },
     { value: 'scraper_skipped', label: 'Scraper Ignorado' },
     { value: 'relevance_failed', label: 'Falha de Relevância' },
