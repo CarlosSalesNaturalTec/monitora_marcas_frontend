@@ -220,6 +220,16 @@ export interface SystemLog {
   message?: string;
 }
 
+export interface ScraperStats {
+  counts: {
+    pending: number;
+    scraper_skipped: number;
+    relevance_failed: number;
+    scraper_failed: number;
+    scraper_ok: number;
+  };
+}
+
 export interface UpdateHistoricalStartDateData {
   new_start_date: string; // YYYY-MM-DD
 }
@@ -323,6 +333,16 @@ export const getMonitorResultsByStatus = async (status: string): Promise<Unified
     return response.data;
   } catch (error) {
     console.error(`Erro ao buscar resultados com status ${status}:`, error);
+    throw error;
+  }
+};
+
+export const getScraperStats = async (): Promise<ScraperStats> => {
+  try {
+    const response = await apiClient.get('/monitor/scraper-stats');
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao buscar estatísticas do scraper:", error);
     throw error;
   }
 };

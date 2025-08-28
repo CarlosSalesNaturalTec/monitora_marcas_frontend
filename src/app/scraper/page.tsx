@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getMonitorResultsByStatus, UnifiedMonitorResult } from '@/lib/api';
+import { getMonitorResultsByStatus, UnifiedMonitorResult, getScraperStats, ScraperStats } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -21,6 +21,11 @@ const ScraperPage = () => {
     enabled: !!selectedStatus, // Only run query if a status is selected
   });
 
+  const { data: stats, isLoading: statsLoading } = useQuery<ScraperStats>({
+    queryKey: ['scraperStats'],
+    queryFn: getScraperStats,
+  });
+
   const statusOptions = [
     { value: 'pending', label: 'Pendente' },
     { value: 'reprocess', label: 'Reprocessar' },
@@ -29,6 +34,14 @@ const ScraperPage = () => {
     { value: 'scraper_skipped', label: 'Scraper Ignorado' },
     { value: 'relevance_failed', label: 'Falha de Relevância' },
   ];
+
+  const statusDisplayMap: { [key: string]: string } = {
+    pending: 'Pendente',
+    scraper_skipped: 'Scraper Ignorado',
+    relevance_failed: 'Falha de Relevância',
+    scraper_failed: 'Falha no Scraper',
+    scraper_ok: 'Scraper OK',
+  };
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
@@ -40,6 +53,33 @@ const ScraperPage = () => {
           </p>
         </div>
       </div>
+
+      {statsLoading ? (
+        <div className="flex items-center justify-center p-4 mb-6"><Loader2 className="h-5 w-5 animate-spin" /> <span className="ml-2">Carregando resumo...</span></div>
+      ) : stats && (
+        <div className="max-w-lg">
+          <Card className="mb-6">
+            <CardContent className="p-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="py-1">Status</TableHead>
+                    <TableHead className="text-right py-1">Quantidade</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Object.entries(stats.counts).map(([key, value]) => (
+                    <TableRow key={key}>
+                      <TableCell className="font-medium py-1">{statusDisplayMap[key] || key}</TableCell>
+                      <TableCell className="text-right py-1">{value}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <Card>
         <CardHeader>
