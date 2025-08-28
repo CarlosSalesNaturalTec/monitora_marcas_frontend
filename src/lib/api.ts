@@ -346,3 +346,13 @@ export const getScraperStats = async (): Promise<ScraperStats> => {
     throw error;
   }
 };
+
+export const getNlpStats = async (): Promise<NlpStats> => {
+  try {
+    const response = await apiClient.get('/monitor/nlp-stats');
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao buscar estatísticas do NLP:", error);
+    throw error;
+  }
+};

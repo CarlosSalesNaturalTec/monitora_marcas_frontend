@@ -2,12 +2,11 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getMonitorResultsByStatus, UnifiedMonitorResult } from '@/lib/api';
+import { getMonitorResultsByStatus, UnifiedMonitorResult, getNlpStats, NlpStats } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, AlertTriangle, Info } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -18,13 +17,20 @@ const NlpPage = () => {
   const { data, isLoading, isError, isFetching } = useQuery<UnifiedMonitorResult[]>({
     queryKey: ['monitorResultsByStatus', 'nlp', selectedStatus],
     queryFn: () => getMonitorResultsByStatus(selectedStatus),
-    enabled: !!selectedStatus, // Only run query if a status is selected
+    enabled: !!selectedStatus,
   });
 
-  const statusOptions = [
-    { value: 'nlp_ok', label: 'Processado com Sucesso' },
-    { value: 'nlp_error', label: 'Erro no Processamento' },
-  ];
+  const { data: stats, isLoading: statsLoading } = useQuery<NlpStats>({
+    queryKey: ['nlpStats'],
+    queryFn: getNlpStats,
+  });
+
+  const statusDisplayMap: { [key: string]: string } = {
+    nlp_ok: 'Processado com Sucesso',
+    nlp_error: 'Erro no Processamento',
+  };
+
+  const statusLabel = statusDisplayMap[selectedStatus] || selectedStatus;
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
@@ -32,34 +38,49 @@ const NlpPage = () => {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">NLP</h1>
           <p className="text-muted-foreground mt-1">
-            Filtre e visualize os resultados do monitoramento por status do processamento de NLP.
+            Clique em um status para filtrar os resultados do processamento de NLP.
           </p>
         </div>
       </div>
 
+      {statsLoading ? (
+        <div className="flex items-center justify-center p-4 mb-6"><Loader2 className="h-5 w-5 animate-spin" /> <span className="ml-2">Carregando resumo...</span></div>
+      ) : stats && (
+        <div className="max-w-lg">
+          <Card className="mb-6">
+            <CardContent className="p-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="py-1">Status</TableHead>
+                    <TableHead className="text-right py-1">Quantidade</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Object.entries(stats.counts).map(([key, value]) => (
+                    <TableRow
+                      key={key}
+                      onClick={() => setSelectedStatus(key)}
+                      className="cursor-pointer"
+                      data-state={selectedStatus === key ? 'selected' : 'unselected'}
+                    >
+                      <TableCell className="font-medium py-1">{statusDisplayMap[key] || key}</TableCell>
+                      <TableCell className="text-right py-1">{value}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <Card>
         <CardHeader>
-          <CardTitle>Resultados por Status</CardTitle>
-          <CardDescription>Selecione um status para ver a lista de artigos correspondentes.</CardDescription>
+          <CardTitle>Resultados para: <Badge variant="outline">{statusLabel}</Badge></CardTitle>
+          <CardDescription>Abaixo estão os resultados para o status selecionado. {isFetching && <Loader2 className="inline-block ml-2 h-4 w-4 animate-spin" />}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
-            <label htmlFor="status-select" className="font-medium">Status:</label>
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger id="status-select" className="w-[250px]">
-                <SelectValue placeholder="Selecione um status" />
-              </SelectTrigger>
-              <SelectContent>
-                {statusOptions.map(option => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {isFetching && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
-          </div>
-
           {isLoading ? (
             <div className="flex items-center justify-center p-8">
               <Loader2 className="h-6 w-6 animate-spin" />
@@ -75,7 +96,7 @@ const NlpPage = () => {
             <Alert>
               <Info className="h-4 w-4" />
               <AlertTitle>Nenhum Resultado Encontrado</AlertTitle>
-              <AlertDescription>Não há artigos com o status "{statusOptions.find(s => s.value === selectedStatus)?.label}" no momento.</AlertDescription>
+              <AlertDescription>Não há artigos com o status "{statusLabel}" no momento.</AlertDescription>
             </Alert>
           ) : (
             <Table>
