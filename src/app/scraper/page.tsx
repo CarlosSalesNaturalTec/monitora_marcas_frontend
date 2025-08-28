@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, AlertTriangle, Info } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -26,22 +25,16 @@ const ScraperPage = () => {
     queryFn: getScraperStats,
   });
 
-  const statusOptions = [
-    { value: 'pending', label: 'Pendente' },
-    { value: 'reprocess', label: 'Reprocessar' },
-    { value: 'scraper_ok', label: 'Scraper OK' },
-    { value: 'scraper_failed', label: 'Falha no Scraper' },
-    { value: 'scraper_skipped', label: 'Scraper Ignorado' },
-    { value: 'relevance_failed', label: 'Falha de Relevância' },
-  ];
-
   const statusDisplayMap: { [key: string]: string } = {
     pending: 'Pendente',
     scraper_skipped: 'Scraper Ignorado',
     relevance_failed: 'Falha de Relevância',
     scraper_failed: 'Falha no Scraper',
     scraper_ok: 'Scraper OK',
+    reprocess: 'Reprocessar',
   };
+
+  const statusLabel = statusDisplayMap[selectedStatus] || selectedStatus;
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
@@ -49,7 +42,7 @@ const ScraperPage = () => {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Scraper</h1>
           <p className="text-muted-foreground mt-1">
-            Filtre e visualize os resultados do monitoramento por status do scraper.
+            Clique em um status para filtrar os resultados.
           </p>
         </div>
       </div>
@@ -58,7 +51,7 @@ const ScraperPage = () => {
         <div className="flex items-center justify-center p-4 mb-6"><Loader2 className="h-5 w-5 animate-spin" /> <span className="ml-2">Carregando resumo...</span></div>
       ) : stats && (
         <div className="max-w-lg">
-          <Card className="mb-6">
+          <Card className="mb-6">            
             <CardContent className="p-4">
               <Table>
                 <TableHeader>
@@ -69,7 +62,12 @@ const ScraperPage = () => {
                 </TableHeader>
                 <TableBody>
                   {Object.entries(stats.counts).map(([key, value]) => (
-                    <TableRow key={key}>
+                    <TableRow
+                      key={key}
+                      onClick={() => setSelectedStatus(key)}
+                      className="cursor-pointer"
+                      data-state={selectedStatus === key ? 'selected' : 'unselected'}
+                    >
                       <TableCell className="font-medium py-1">{statusDisplayMap[key] || key}</TableCell>
                       <TableCell className="text-right py-1">{value}</TableCell>
                     </TableRow>
@@ -83,27 +81,10 @@ const ScraperPage = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Resultados por Status</CardTitle>
-          <CardDescription>Selecione um status para ver a lista de URLs correspondentes.</CardDescription>
+          <CardTitle>Resultados para: <Badge variant="outline">{statusLabel}</Badge></CardTitle>
+          <CardDescription>Abaixo estão os resultados para o status selecionado. {isFetching && <Loader2 className="inline-block ml-2 h-4 w-4 animate-spin" />}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
-            <label htmlFor="status-select" className="font-medium">Status:</label>
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger id="status-select" className="w-[250px]">
-                <SelectValue placeholder="Selecione um status" />
-              </SelectTrigger>
-              <SelectContent>
-                {statusOptions.map(option => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {isFetching && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
-          </div>
-
           {isLoading ? (
             <div className="flex items-center justify-center p-8">
               <Loader2 className="h-6 w-6 animate-spin" />
@@ -119,7 +100,7 @@ const ScraperPage = () => {
             <Alert>
               <Info className="h-4 w-4" />
               <AlertTitle>Nenhum Resultado Encontrado</AlertTitle>
-              <AlertDescription>Não há URLs com o status "{statusOptions.find(s => s.value === selectedStatus)?.label}" no momento.</AlertDescription>
+              <AlertDescription>Não há URLs com o status "{statusLabel}" no momento.</AlertDescription>
             </Alert>
           ) : (
             <Table>
