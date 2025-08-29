@@ -230,6 +230,10 @@ export interface ScraperStats {
   };
 }
 
+export interface NlpStats {
+  counts: Record<string, number>;
+}
+
 export interface UpdateHistoricalStartDateData {
   new_start_date: string; // YYYY-MM-DD
 }
