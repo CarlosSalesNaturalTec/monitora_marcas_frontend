@@ -41,6 +41,9 @@ export function Navbar() {
             <Button asChild variant="ghost">
               <Link href="/dashboard">Dashboard</Link>
             </Button>
+            <Button asChild variant="ghost">
+              <Link href="/analytics">Analytics</Link>
+            </Button>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
