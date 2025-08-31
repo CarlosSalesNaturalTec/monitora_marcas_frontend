@@ -55,6 +55,9 @@ export function Navbar() {
                     <DropdownMenuItem asChild>
                       <Link href="/profile">Termos de Pesquisa</Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/trends">Google Trends</Link>
+                    </DropdownMenuItem>
                   </>
                 )}
                 <DropdownMenuItem asChild>

@@ -351,6 +351,50 @@ export const getScraperStats = async (): Promise<ScraperStats> => {
   }
 };
 
+// --- Tipos para Google Trends ---
+
+export interface TrendTerm {
+  id: string;
+  term: string;
+  is_active: boolean;
+}
+
+export interface TrendTermCreate {
+  term: string;
+  is_active: boolean;
+}
+
+// --- Funções de Gerenciamento de Termos do Google Trends ---
+
+export const getTrendTerms = async (): Promise<TrendTerm[]> => {
+  try {
+    const response = await apiClient.get('/trends/terms');
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao buscar termos do Trends:", error);
+    throw error;
+  }
+};
+
+export const addTrendTerm = async (termData: TrendTermCreate): Promise<TrendTerm> => {
+  try {
+    const response = await apiClient.post('/trends/terms', termData);
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao adicionar termo do Trends:", error);
+    throw error;
+  }
+};
+
+export const deleteTrendTerm = async (termId: string): Promise<void> => {
+  try {
+    await apiClient.delete(`/trends/terms/${termId}`);
+  } catch (error) {
+    console.error("Erro ao deletar termo do Trends:", error);
+    throw error;
+  }
+};
+
 export const getNlpStats = async (): Promise<NlpStats> => {
   try {
     const response = await apiClient.get('/monitor/nlp-stats');
