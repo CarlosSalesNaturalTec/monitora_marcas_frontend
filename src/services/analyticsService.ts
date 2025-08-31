@@ -4,9 +4,9 @@ const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000',
 });
 
-// Tipagem para os dados retornados pela API (baseado nos schemas do FastAPI)
+// --- Tipagem ---
 
-// --- Tipos para Aba 1 e 2 ---
+// Abas 1 & 2
 export interface KpiResponse {
   total_mentions: number;
   average_sentiment: number;
@@ -41,7 +41,7 @@ export interface MentionsResponse {
   mentions: Mention[];
 }
 
-// --- Tipos para Aba 3 ---
+// Aba 3
 export interface RisingQueryItem {
   query: string;
   value: number;
@@ -64,6 +64,31 @@ export interface TrendsComparisonItem {
 
 export interface TrendsComparisonResponse {
     comparison_data: TrendsComparisonItem[];
+}
+
+// Aba 4
+export interface SentimentDistributionItem {
+    sentiment: 'positivo' | 'negativo' | 'neutro';
+    count: number;
+}
+
+export interface SentimentDistributionResponse {
+    distribution: SentimentDistributionItem[];
+}
+
+export interface SentimentOverTimeDataPoint {
+    positive: number;
+    negative: number;
+    neutral: number;
+}
+
+export interface SentimentOverTimeItem {
+    date: string;
+    sentiments: SentimentOverTimeDataPoint;
+}
+
+export interface SentimentOverTimeResponse {
+    over_time_data: SentimentOverTimeItem[];
 }
 
 
@@ -113,7 +138,21 @@ export const getRisingQueries = async (searchGroup: string): Promise<RisingQueri
 
 export const getTrendsComparison = async (terms: string[], days: number): Promise<TrendsComparisonResponse> => {
     const { data } = await apiClient.get('/analytics/trends_comparison', {
-        params: { terms: terms.join(','), days }, // Pass terms as a comma-separated string
+        params: { terms, days }, // FastAPI handles list parameters correctly
+    });
+    return data;
+};
+
+export const getSentimentDistribution = async (searchGroup: string, days: number): Promise<SentimentDistributionResponse> => {
+    const { data } = await apiClient.get('/analytics/sentiment_distribution', {
+        params: { search_group: searchGroup, days },
+    });
+    return data;
+};
+
+export const getSentimentOverTime = async (searchGroup: string, days: number): Promise<SentimentOverTimeResponse> => {
+    const { data } = await apiClient.get('/analytics/sentiment_over_time', {
+        params: { search_group: searchGroup, days },
     });
     return data;
 };

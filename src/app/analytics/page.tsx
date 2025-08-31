@@ -6,12 +6,11 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from '@/components/ui/button';
 
-// Importe os componentes das abas que serão criados
+// Importe os componentes das abas
 import TabVisaoGeral from '@/components/analytics/TabVisaoGeral';
 import TabAnalisePautas from '@/components/analytics/TabAnalisePautas';
 import TabInteligenciaTrends from '@/components/analytics/TabInteligenciaTrends';
-// Supondo que o componente da Aba 4 já existe
-// import TabAnaliseSentimento from '@/components/analytics/TabAnaliseSentimento';
+import TabAnaliseSentimento from '@/components/analytics/TabAnaliseSentimento';
 
 
 export default function AnalyticsPage() {
@@ -88,15 +87,7 @@ export default function AnalyticsPage() {
           <TabInteligenciaTrends {...commonProps} />
         </TabsContent>
         <TabsContent value="analise-sentimento" className="mt-6">
-          {/* <TabAnaliseSentimento {...commonProps} /> */}
-           <Card>
-            <CardHeader>
-              <CardTitle>Análise de Sentimento</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p>Componente da Aba 4 (Análise de Sentimento) a ser renderizado aqui.</p>
-            </CardContent>
-          </Card>
+          <TabAnaliseSentimento {...commonProps} />
         </TabsContent>
       </Tabs>
     </div>
