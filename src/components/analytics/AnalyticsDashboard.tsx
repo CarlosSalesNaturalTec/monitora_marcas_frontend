@@ -11,8 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 const AnalyticsDashboard = () => {
-  const [searchTerm, setSearchTerm] = useState('default'); // Initialize with a default or popular term
-  const [inputValue, setInputValue] = useState('default');
+  const [searchTerm, setSearchTerm] = useState('brand'); // Initialize with a default or popular term
+  const [inputValue, setInputValue] = useState('brand');
 
   const {
     data: sentimentDistributionData,
