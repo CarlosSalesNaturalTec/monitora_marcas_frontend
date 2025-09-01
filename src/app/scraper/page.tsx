@@ -15,8 +15,8 @@ const ScraperPage = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>('pending');
 
   const { data, isLoading, isError, isFetching } = useQuery<UnifiedMonitorResult[]>({
-    queryKey: ['monitorResultsByStatus', selectedStatus],
-    queryFn: () => getMonitorResultsByStatus(selectedStatus),
+    queryKey: ['monitorResultsByStatus', selectedStatus, 100],
+    queryFn: () => getMonitorResultsByStatus(selectedStatus, 100),
     enabled: !!selectedStatus, // Only run query if a status is selected
   });
 
@@ -32,6 +32,15 @@ const ScraperPage = () => {
     scraper_failed: 'Falha no Scraper',
     scraper_ok: 'Scraper OK',
     reprocess: 'Reprocessar',
+  };
+
+  const statusDescriptionMap: { [key: string]: string } = {
+    pending: 'URLs aguardando para serem processadas pelo scraper.',
+    scraper_skipped: 'Domínios de redes sociais como YouTube, Instagram, etc. A serem processadas pelos respectivos scrapers.',
+    relevance_failed: 'O conteúdo extraído da URL foi considerado irrelevante.',
+    scraper_failed: 'Ocorreu um erro durante a tentativa de extração de conteúdo da URL. A serem processadas por outros scrapers.',
+    scraper_ok: 'O conteúdo da URL foi extraído com sucesso.',
+    reprocess: 'URLs marcadas para serem reprocessadas pelo scraper.',
   };
 
   const statusLabel = statusDisplayMap[selectedStatus] || selectedStatus;
@@ -50,14 +59,15 @@ const ScraperPage = () => {
       {statsLoading ? (
         <div className="flex items-center justify-center p-4 mb-6"><Loader2 className="h-5 w-5 animate-spin" /> <span className="ml-2">Carregando resumo...</span></div>
       ) : stats && (
-        <div className="max-w-lg">
+        <div className="w-full">
           <Card className="mb-6">            
             <CardContent className="p-4">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="py-1">Status</TableHead>
-                    <TableHead className="text-right py-1">Quantidade</TableHead>
+                    <TableHead className="text-right py-1">Quantidade</TableHead>                    
+                    <TableHead className="py-1">Descrição</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -69,7 +79,8 @@ const ScraperPage = () => {
                       data-state={selectedStatus === key ? 'selected' : 'unselected'}
                     >
                       <TableCell className="font-medium py-1">{statusDisplayMap[key] || key}</TableCell>
-                      <TableCell className="text-right py-1">{value}</TableCell>
+                      <TableCell className="text-right py-1">{value}</TableCell>                      
+                      <TableCell className="text-sm text-muted-foreground py-1">{statusDescriptionMap[key] || ''}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -112,7 +123,11 @@ const ScraperPage = () => {
                   <TableHead>Grupo</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Data da Coleta</TableHead>
-                  <TableHead>Snippet</TableHead>
+                  {selectedStatus === 'scraper_failed' ? (
+                    <TableHead>Mensagem de Erro</TableHead>
+                  ) : (
+                    <TableHead>Snippet</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -136,13 +151,19 @@ const ScraperPage = () => {
                     <TableCell>
                       {format(new Date(item.range_start || item.collected_at), 'dd/MM/yyyy', { locale: ptBR })}
                     </TableCell>
-                    <TableCell className="max-w-sm">
-                      <div
-                        className="truncate"
-                        dangerouslySetInnerHTML={{ __html: item.htmlSnippet }}
-                        title={item.snippet}
-                      />
-                    </TableCell>
+                    {selectedStatus === 'scraper_failed' ? (
+                      <TableCell className="max-w-sm text-red-500">
+                        {item.error_message}
+                      </TableCell>
+                    ) : (
+                      <TableCell className="max-w-sm">
+                        <div
+                          className="truncate"
+                          dangerouslySetInnerHTML={{ __html: item.htmlSnippet }}
+                          title={item.snippet}
+                        />
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

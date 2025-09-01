@@ -154,6 +154,7 @@ export interface UnifiedMonitorResult {
   collected_at: string;
   range_start?: string;
   range_end?: string;
+  error_message?: string;
 }
 
 export interface MonitorRunDetails {
@@ -330,10 +331,15 @@ export const getSystemLogs = async (): Promise<SystemLog[]> => {
   }
 };
 
-export const getMonitorResultsByStatus = async (status: string): Promise<UnifiedMonitorResult[]> => {
+export const getMonitorResultsByStatus = async (status: string, limit?: number): Promise<UnifiedMonitorResult[]> => {
   if (!status) return []; // Don't fetch if status is empty
   try {
-    const response = await apiClient.get(`/monitor/results-by-status/${status}`);
+    const params = new URLSearchParams();
+    if (limit) {
+      params.append('limit', limit.toString());
+    }
+    
+    const response = await apiClient.get(`/monitor/results-by-status/${status}`, { params });
     return response.data;
   } catch (error) {
     console.error(`Erro ao buscar resultados com status ${status}:`, error);
