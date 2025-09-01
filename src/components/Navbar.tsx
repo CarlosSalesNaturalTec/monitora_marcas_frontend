@@ -37,10 +37,6 @@ export function Navbar() {
           </Link>
           
           <div className="flex items-center space-x-4">
-            {/* Acesso ao Dashboard para qualquer usuário logado */}
-            <Button asChild variant="ghost">
-              <Link href="/dashboard">Dashboard</Link>
-            </Button>
             <Button asChild variant="ghost">
               <Link href="/analytics">Analytics</Link>
             </Button>

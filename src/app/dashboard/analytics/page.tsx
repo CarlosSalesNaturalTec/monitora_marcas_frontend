@@ -2,7 +2,7 @@
 import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import AuthProvider from '@/context/AuthContext'; // Supondo que você tenha um AuthProvider
+import { AuthProvider } from '@/context/AuthContext'; // Supondo que você tenha um AuthProvider // Supondo que você tenha um AuthProvider
 import HydratedQueryProvider from '@/context/HydratedQueryProvider';
 
 export default function AnalyticsPage() {
