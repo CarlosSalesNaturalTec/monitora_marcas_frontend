@@ -36,15 +36,15 @@ const MentionsTable = ({ searchGroup, days, entity, page, setPage }: TabProps & 
     const { data, isLoading, isError, error } = useQuery({
         queryKey: ['mentions', searchGroup, days, page, entity],
         queryFn: () => getMentions(searchGroup, days, page, entity),
-        keepPreviousData: true,
+        placeholderData: (previousData) => previousData,
     });
 
     if (isLoading) return <LoadingSpinner />;
     if (isError) return <ErrorAlert message={error.message} />;
 
-    const sentimentVariant = (sentiment: string) => {
+    const sentimentVariant = (sentiment: string): "secondary" | "destructive" | "default" | "outline" | null | undefined => {
         switch (sentiment) {
-            case 'positivo': return 'success';
+            case 'positivo': return 'default'; // Usar 'default' para positivo
             case 'negativo': return 'destructive';
             default: return 'secondary';
         }
