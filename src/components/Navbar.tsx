@@ -56,6 +56,9 @@ export function Navbar() {
                   <DropdownMenuItem asChild>
                     <Link href="/instagram/targets">Alvos</Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard/instagram">Dashboard</Link>
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
