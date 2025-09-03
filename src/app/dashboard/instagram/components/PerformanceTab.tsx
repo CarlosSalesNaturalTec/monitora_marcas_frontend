@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -10,44 +11,44 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AreaChart, BarChart, ScatterChart } from "@tremor/react";
+import {
+  getEngagementEvolution,
+  getPerformanceByContentType,
+  getPostsRanking,
+  getTopCommenters,
+} from "@/services/instagramDashboardApi";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// Mock Data
-const engagementData = [
-  { date: "01/08", Likes: 2890, Comentários: 480 },
-  { date: "02/08", Likes: 2756, Comentários: 510 },
-  { date: "03/08", Likes: 3322, Comentários: 690 },
-  { date: "04/08", Likes: 3470, Comentários: 590 },
-  { date: "05/08", Likes: 3475, Comentários: 720 },
-  { date: "06/08", Likes: 3129, Comentários: 650 },
-  { date: "07/08", Likes: 3490, Comentários: 810 },
-];
+// Tipos para os dados da API
+interface EngagementData {
+  labels: string[];
+  likes_series: number[];
+  comments_series: number[];
+}
 
-const contentTypeData = [
-  { type: "Imagem", "Média de Likes": 2800, "Média de Comentários": 450 },
-  { type: "Vídeo (Reels)", "Média de Likes": 5200, "Média de Comentários": 980 },
-  { type: "Carrossel", "Média de Likes": 3500, "Média de Comentários": 620 },
-];
+interface ContentTypePerformance {
+  [key: string]: {
+    avg_likes: number;
+    avg_comments: number;
+    post_count: number;
+  };
+}
 
-const topPostsData = [
-  { post: "Inauguração da nova creche", likes: 8900, comments: 1500 },
-  { post: "Asfaltamento da Rua Principal", likes: 7500, comments: 1200 },
-  { post: "Visita ao hospital regional", likes: 6800, comments: 950 },
-  { post: "Reunião com líderes comunitários", likes: 4200, comments: 500 },
-  { post: "Prestação de contas semanal", likes: 3100, comments: 350 },
-];
+interface PostRanking {
+  id: string;
+  data: {
+    caption: string;
+    likes_count: number;
+    comments_count: number;
+  };
+}
 
-const topSupporters = [
-  { user: "@maria_silva", comments: 25, sentiment: 0.95 },
-  { user: "@joao_costa", comments: 18, sentiment: 0.92 },
-  { user: "@ana_pereira", comments: 15, sentiment: 0.88 },
-];
+interface TopCommenter {
+  username: string;
+  comment_count: number;
+}
 
-const topCritics = [
-  { user: "@carlos_santos", comments: 32, sentiment: -0.91 },
-  { user: "@pedro_almeida", comments: 21, sentiment: -0.85 },
-  { user: "@lucia_fernandes", comments: 19, sentiment: -0.89 },
-];
-
+// Mock Data para o gráfico de influência (TODO: Criar endpoint para isso)
 const commentersInfluence = [
     { user: 'Militante 1', comments: 50, followers: 150 },
     { user: 'Militante 2', comments: 45, followers: 200 },
@@ -56,48 +57,108 @@ const commentersInfluence = [
     { user: 'Jornalista', comments: 2, followers: 8000 },
 ];
 
+// TODO: O perfil do usuário deve vir de um contexto ou seletor na UI
+const PROFILE_USERNAME = "nome_parlamentar"; 
 
 export default function PerformanceTab() {
+  const [engagementData, setEngagementData] = useState<any[]>([]);
+  const [contentTypeData, setContentTypeData] = useState<any[]>([]);
+  const [topPosts, setTopPosts] = useState<PostRanking[]>([]);
+  const [topSupporters, setTopSupporters] = useState<TopCommenter[]>([]);
+  const [topCritics, setTopCritics] = useState<TopCommenter[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        setLoading(true);
+        const [
+          engagementRes,
+          performanceRes,
+          rankingRes,
+          supportersRes,
+          criticsRes,
+        ] = await Promise.all([
+          getEngagementEvolution(PROFILE_USERNAME, 30),
+          getPerformanceByContentType(PROFILE_USERNAME),
+          getPostsRanking(PROFILE_USERNAME, 'likes_count', 5),
+          getTopCommenters(PROFILE_USERNAME, 'supporter', 3),
+          getTopCommenters(PROFILE_USERNAME, 'critic', 3),
+        ]);
+
+        // Formatar dados para os gráficos
+        const formattedEngagement = engagementRes.labels.map((label: string, index: number) => ({
+          date: new Date(label).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+          Likes: engagementRes.likes_series[index],
+          Comentários: engagementRes.comments_series[index],
+        }));
+        setEngagementData(formattedEngagement);
+
+        const formattedPerformance = Object.entries(performanceRes).map(([type, data]) => ({
+            type: type,
+            "Média de Likes": data.avg_likes,
+            "Média de Comentários": data.avg_comments,
+        }));
+        setContentTypeData(formattedPerformance);
+
+        setTopPosts(rankingRes);
+        setTopSupporters(supportersRes);
+        setTopCritics(criticsRes);
+
+      } catch (err) {
+        setError("Falha ao carregar os dados de performance. Tente novamente mais tarde.");
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAllData();
+  }, []);
+
+  if (error) {
+    return <div className="text-red-500 text-center mt-10">{error}</div>;
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
       {/* Evolução do Engajamento */}
       <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle>Evolução do Engajamento (Últimos 7 Dias)</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Evolução do Engajamento (Últimos 30 Dias)</CardTitle></CardHeader>
         <CardContent>
-          <AreaChart
-            data={engagementData}
-            index="date"
-            categories={["Likes", "Comentários"]}
-            colors={["blue", "green"]}
-            yAxisWidth={60}
-          />
+          {loading ? <Skeleton className="h-72 w-full" /> : (
+            <AreaChart
+              data={engagementData}
+              index="date"
+              categories={["Likes", "Comentários"]}
+              colors={["blue", "green"]}
+              yAxisWidth={60}
+            />
+          )}
         </CardContent>
       </Card>
 
       {/* Performance por Tipo de Conteúdo */}
       <Card>
-        <CardHeader>
-          <CardTitle>Performance por Tipo de Conteúdo</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Performance por Tipo de Conteúdo</CardTitle></CardHeader>
         <CardContent>
-          <BarChart
-            data={contentTypeData}
-            index="type"
-            categories={["Média de Likes", "Média de Comentários"]}
-            colors={["blue", "green"]}
-            layout="vertical"
-            yAxisWidth={100}
-          />
+          {loading ? <Skeleton className="h-72 w-full" /> : (
+            <BarChart
+              data={contentTypeData}
+              index="type"
+              categories={["Média de Likes", "Média de Comentários"]}
+              colors={["blue", "green"]}
+              layout="vertical"
+              yAxisWidth={100}
+            />
+          )}
         </CardContent>
       </Card>
       
       {/* Mapa de Influência dos Comentaristas */}
       <Card>
-        <CardHeader>
-          <CardTitle>Mapa de Influência dos Comentaristas</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Mapa de Influência dos Comentaristas (Exemplo)</CardTitle></CardHeader>
         <CardContent>
             <ScatterChart
                 data={commentersInfluence}
@@ -114,78 +175,78 @@ export default function PerformanceTab() {
 
       {/* Ranking de Posts */}
       <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle>Ranking de Posts (Top 5)</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Ranking de Posts (Top 5)</CardTitle></CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Post</TableHead>
-                <TableHead className="text-right">Likes</TableHead>
-                <TableHead className="text-right">Comentários</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {topPostsData.map((post) => (
-                <TableRow key={post.post}>
-                  <TableCell className="font-medium">{post.post}</TableCell>
-                  <TableCell className="text-right">{post.likes}</TableCell>
-                  <TableCell className="text-right">{post.comments}</TableCell>
+          {loading ? <Skeleton className="h-60 w-full" /> : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Post</TableHead>
+                  <TableHead className="text-right">Likes</TableHead>
+                  <TableHead className="text-right">Comentários</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {topPosts.map((post) => (
+                  <TableRow key={post.id}>
+                    <TableCell className="font-medium truncate max-w-xs">{post.data.caption || post.id}</TableCell>
+                    <TableCell className="text-right">{post.data.likes_count.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">{post.data.comments_count.toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
       {/* Top 3 Apoiadores */}
       <Card>
-        <CardHeader>
-          <CardTitle>Top 3 Apoiadores</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Top 3 Apoiadores</CardTitle></CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Usuário</TableHead>
-                <TableHead className="text-right">Comentários</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {topSupporters.map((user) => (
-                <TableRow key={user.user}>
-                  <TableCell className="font-medium">{user.user}</TableCell>
-                  <TableCell className="text-right">{user.comments}</TableCell>
+          {loading ? <Skeleton className="h-40 w-full" /> : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Usuário</TableHead>
+                  <TableHead className="text-right">Comentários</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {topSupporters.map((user) => (
+                  <TableRow key={user.username}>
+                    <TableCell className="font-medium">{user.username}</TableCell>
+                    <TableCell className="text-right">{user.comment_count}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
       {/* Top 3 Críticos */}
       <Card>
-        <CardHeader>
-          <CardTitle>Top 3 Críticos</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Top 3 Críticos</CardTitle></CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Usuário</TableHead>
-                <TableHead className="text-right">Comentários</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {topCritics.map((user) => (
-                <TableRow key={user.user}>
-                  <TableCell className="font-medium">{user.user}</TableCell>
-                  <TableCell className="text-right">{user.comments}</TableCell>
+          {loading ? <Skeleton className="h-40 w-full" /> : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Usuário</TableHead>
+                  <TableHead className="text-right">Comentários</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {topCritics.map((user) => (
+                  <TableRow key={user.username}>
+                    <TableCell className="font-medium">{user.username}</TableCell>
+                    <TableCell className="text-right">{user.comment_count}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -11,95 +12,152 @@ import {
 } from "@/components/ui/table";
 import { AreaChart, BarChart } from "@tremor/react";
 import ReactWordcloud from "react-wordcloud";
+import {
+  getHeadToHeadEngagement,
+  getContentStrategyComparison,
+  getVulnerabilityIdentification,
+} from "@/services/instagramDashboardApi";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// Mock Data
-const headToHeadData = [
-  { date: "01/08", "Seu Perfil": 3370, "Concorrente A": 2980, "Concorrente B": 2540 },
-  { date: "02/08", "Seu Perfil": 3266, "Concorrente A": 3150, "Concorrente B": 2680 },
-  { date: "03/08", "Seu Perfil": 4012, "Concorrente A": 3540, "Concorrente B": 2890 },
-  { date: "04/08", "Seu Perfil": 4060, "Concorrente A": 3890, "Concorrente B": 2780 },
-  { date: "05/08", "Seu Perfil": 4195, "Concorrente A": 3950, "Concorrente B": 3010 },
-  { date: "06/08", "Seu Perfil": 3779, "Concorrente A": 4100, "Concorrente B": 3250 },
-  { date: "07/08", "Seu Perfil": 4300, "Concorrente A": 4250, "Concorrente B": 3100 },
-];
+// Tipos para os dados da API
+interface HeadToHeadData {
+  labels: string[];
+  series: {
+    [profile: string]: number[];
+  };
+}
 
-const contentStrategyData = [
-    { name: 'Seu Perfil', Imagem: 40, 'Vídeo (Reels)': 50, Carrossel: 10 },
-    { name: 'Concorrente A', Imagem: 60, 'Vídeo (Reels)': 25, Carrossel: 15 },
-    { name: 'Concorrente B', Imagem: 75, 'Vídeo (Reels)': 15, Carrossel: 10 },
-];
+interface ContentStrategyData {
+    [profile: string]: {
+        [type: string]: number;
+    };
+}
 
+interface VulnerabilityData {
+    profile: string;
+    post_id: string;
+    avg_sentiment: number;
+    comments_count: number;
+    caption: string;
+}
+
+// Mock Data para a nuvem de palavras (TODO: Criar endpoint para isso)
 const yourWords = [
     { text: 'futuro', value: 40 }, { text: 'trabalho', value: 35 },
     { text: 'cidade', value: 38 }, { text: 'oportunidade', value: 30 },
-    { text: 'desenvolvimento', value: 28 }, { text: 'esperança', value: 25 },
 ];
-
 const competitorWords = [
     { text: 'problemas', value: 45 }, { text: 'crise', value: 38 },
     { text: 'segurança', value: 42 }, { text: 'abandono', value: 30 },
-    { text: 'denúncia', value: 25 }, { text: 'caos', value: 22 },
 ];
-
-const vulnerabilitiesData = [
-    { post: 'Concorrente A: "Proposta para o trânsito"', issue: 'Alta rejeição nos comentários, sentimento médio de -0.75', opportunity: 'Apresentar nossa proposta focando nos pontos criticados.' },
-    { post: 'Concorrente B: "Balanço da saúde"', issue: 'Muitos comentários citando falta de medicamentos.', opportunity: 'Criar conteúdo sobre nossas ações para a saúde básica.' },
-];
-
 const wordcloudOptions = {
     rotations: 0,
-    fontSizes: [14, 50],
-  };
+    fontSizes: [14, 50] as [number, number],
+};
+
+// TODO: Perfis devem vir de um seletor na UI
+const MAIN_PROFILE = "nome_parlamentar";
+const COMPETITOR_PROFILES = ["concorrente_a", "concorrente_b"];
+const ALL_PROFILES = [MAIN_PROFILE, ...COMPETITOR_PROFILES];
 
 export default function CompetitionTab() {
+  const [headToHeadData, setHeadToHeadData] = useState<any[]>([]);
+  const [profileCategories, setProfileCategories] = useState<string[]>([]);
+  const [contentStrategyData, setContentStrategyData] = useState<any[]>([]);
+  const [vulnerabilities, setVulnerabilities] = useState<VulnerabilityData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        setLoading(true);
+        const [engagementRes, strategyRes, vulnerabilityRes] = await Promise.all([
+          getHeadToHeadEngagement(ALL_PROFILES, 7),
+          getContentStrategyComparison(ALL_PROFILES),
+          getVulnerabilityIdentification(COMPETITOR_PROFILES),
+        ]);
+
+        // Formatar dados de engajamento
+        const profileNames = Object.keys(engagementRes.series);
+        setProfileCategories(profileNames);
+        const formattedEngagement = engagementRes.labels.map((label: string, index: number) => {
+            const entry: { [key: string]: any } = { date: new Date(label).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) };
+            profileNames.forEach(profile => {
+                entry[profile] = engagementRes.series[profile][index];
+            });
+            return entry;
+        });
+        setHeadToHeadData(formattedEngagement);
+
+        // Formatar dados de estratégia de conteúdo
+        const formattedStrategy = Object.entries(strategyRes).map(([profile, types]) => ({
+            name: profile,
+            ...types
+        }));
+        setContentStrategyData(formattedStrategy);
+
+        setVulnerabilities(vulnerabilityRes);
+
+      } catch (err) {
+        setError("Falha ao carregar os dados de competição. Tente novamente mais tarde.");
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAllData();
+  }, []);
+
+  if (error) {
+    return <div className="text-red-500 text-center mt-10">{error}</div>;
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
       {/* Head-to-Head de Engajamento */}
       <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle>Head-to-Head de Engajamento (Likes + Comentários)</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Head-to-Head de Engajamento (Likes + Comentários)</CardTitle></CardHeader>
         <CardContent>
-          <AreaChart
-            data={headToHeadData}
-            index="date"
-            categories={["Seu Perfil", "Concorrente A", "Concorrente B"]}
-            colors={["blue", "red", "yellow"]}
-            yAxisWidth={60}
-          />
+          {loading ? <Skeleton className="h-72 w-full" /> : (
+            <AreaChart
+              data={headToHeadData}
+              index="date"
+              categories={profileCategories}
+              colors={["blue", "red", "yellow", "green"]}
+              yAxisWidth={60}
+            />
+          )}
         </CardContent>
       </Card>
 
       {/* Comparativo de Estratégia de Conteúdo */}
       <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle>Comparativo de Estratégia de Conteúdo (% por Tipo)</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Comparativo de Estratégia de Conteúdo (% por Tipo)</CardTitle></CardHeader>
         <CardContent>
+          {loading ? <Skeleton className="h-48 w-full" /> : (
             <BarChart
                 data={contentStrategyData}
                 index="name"
-                categories={['Imagem', 'Vídeo (Reels)', 'Carrossel']}
+                categories={['GraphImage', 'GraphVideo', 'GraphSidecar']} // Nomes dos tipos do Instaloader
                 colors={['cyan', 'blue', 'indigo']}
                 layout="vertical"
                 stack={true}
             />
+          )}
         </CardContent>
       </Card>
 
       {/* Nuvem de Palavras Comparativa */}
       <Card>
-        <CardHeader>
-          <CardTitle>Suas Pautas</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Suas Pautas (Exemplo)</CardTitle></CardHeader>
         <CardContent className="h-64">
             <ReactWordcloud words={yourWords} options={wordcloudOptions} />
         </CardContent>
       </Card>
       <Card>
-        <CardHeader>
-          <CardTitle>Pautas do Concorrente A</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Pautas do Concorrente (Exemplo)</CardTitle></CardHeader>
         <CardContent className="h-64">
             <ReactWordcloud words={competitorWords} options={wordcloudOptions} />
         </CardContent>
@@ -107,28 +165,32 @@ export default function CompetitionTab() {
 
       {/* Identificação de Vulnerabilidades */}
       <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle>Identificação de Vulnerabilidades e Oportunidades</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Identificação de Vulnerabilidades e Oportunidades</CardTitle></CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Post do Concorrente</TableHead>
-                <TableHead>Vulnerabilidade Detectada</TableHead>
-                <TableHead>Oportunidade para Ação</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {vulnerabilitiesData.map((item) => (
-                <TableRow key={item.post}>
-                  <TableCell className="font-medium">{item.post}</TableCell>
-                  <TableCell>{item.issue}</TableCell>
-                  <TableCell className="text-green-600 font-semibold">{item.opportunity}</TableCell>
+          {loading ? <Skeleton className="h-40 w-full" /> : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Post do Concorrente</TableHead>
+                  <TableHead>Vulnerabilidade Detectada</TableHead>
+                  <TableHead>Sentimento Médio</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {vulnerabilities.length > 0 ? vulnerabilities.map((item) => (
+                  <TableRow key={item.post_id}>
+                    <TableCell className="font-medium">{item.profile}: "{item.caption}..."</TableCell>
+                    <TableCell>Alto volume de comentários ({item.comments_count}) com tom negativo.</TableCell>
+                    <TableCell className="text-red-600 font-bold text-right">{item.avg_sentiment.toFixed(2)}</TableCell>
+                  </TableRow>
+                )) : (
+                    <TableRow>
+                        <TableCell colSpan={3} className="text-center">Nenhuma vulnerabilidade detectada.</TableCell>
+                    </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
