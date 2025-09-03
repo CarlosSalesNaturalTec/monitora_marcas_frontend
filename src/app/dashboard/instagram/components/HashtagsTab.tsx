@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -24,6 +25,7 @@ import {
   getHashtagFeed,
 } from "@/services/instagramDashboardApi";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Heart, MessageCircle } from "lucide-react";
 
 // Tipos de dados da API
 interface SentimentOverTimeData {
@@ -38,6 +40,17 @@ interface TopicInfluencersData {
     };
 }
 
+interface HashtagPost {
+    id: string;
+    data: {
+        thumbnail_url: string;
+        caption: string;
+        likes_count: number;
+        comments_count: number;
+        post_url: string;
+    }
+}
+
 // TODO: As hashtags monitoradas devem vir de uma chamada à API (coleção monitored_hashtags)
 const monitoredHashtags = [
   { id: "seguranca", name: "SegurançaEmMinhaCidade" },
@@ -49,6 +62,7 @@ export default function HashtagsTab() {
   const [selectedHashtag, setSelectedHashtag] = useState<string>(monitoredHashtags[0].name);
   const [sentimentData, setSentimentData] = useState<any[]>([]);
   const [influencers, setInfluencers] = useState<any[]>([]);
+  const [hashtagFeed, setHashtagFeed] = useState<HashtagPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,9 +73,10 @@ export default function HashtagsTab() {
       try {
         setLoading(true);
         setError(null);
-        const [sentimentRes, influencersRes] = await Promise.all([
+        const [sentimentRes, influencersRes, feedRes] = await Promise.all([
           getTopicSentimentOverTime(selectedHashtag, 30),
           getTopicInfluencers(selectedHashtag, 5),
+          getHashtagFeed(selectedHashtag, 20),
         ]);
 
         // Formatar dados de sentimento
@@ -72,12 +87,14 @@ export default function HashtagsTab() {
         setSentimentData(formattedSentiment);
 
         // Formatar dados de influenciadores
-        const formattedInfluencers = Object.entries(influencersRes).map(([username, data]) => ({
+        const formattedInfluencers = Object.entries(influencersRes).map(([username, data]: [string, any]) => ({
             user: username,
             engagement: data.total_engagement,
             posts: data.post_count,
         }));
         setInfluencers(formattedInfluencers);
+
+        setHashtagFeed(feedRes);
 
       } catch (err) {
         setError(`Falha ao carregar dados para #${selectedHashtag}.`);
@@ -118,10 +135,36 @@ export default function HashtagsTab() {
       {/* Feed da Hashtag */}
       <Card className="lg:col-span-1 h-[600px]">
         <CardHeader><CardTitle>Feed da Hashtag</CardTitle></CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center h-full bg-gray-100 dark:bg-gray-800 rounded-md">
-            <p className="text-gray-500">[Feed Visual de Posts - TODO]</p>
-          </div>
+        <CardContent className="overflow-y-auto h-[520px] pr-2">
+          {loading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-48 w-full" />
+              <Skeleton className="h-48 w-full" />
+            </div>
+          ) : error ? <p className="text-red-500">{error}</p> : (
+            <div className="space-y-4">
+              {hashtagFeed.map((post) => (
+                <a key={post.id} href={post.data.post_url} target="_blank" rel="noopener noreferrer" className="block">
+                  <Card className="overflow-hidden">
+                    <Image
+                      src={post.data.thumbnail_url}
+                      alt="Post thumbnail"
+                      width={400}
+                      height={400}
+                      className="w-full h-auto object-cover"
+                    />
+                    <div className="p-2">
+                      <p className="text-xs text-gray-500 truncate">{post.data.caption}</p>
+                      <div className="flex items-center justify-end gap-2 text-xs mt-1">
+                        <Heart className="w-3 h-3" /> {post.data.likes_count.toLocaleString('pt-BR')}
+                        <MessageCircle className="w-3 h-3" /> {post.data.comments_count.toLocaleString('pt-BR')}
+                      </div>
+                    </div>
+                  </Card>
+                </a>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

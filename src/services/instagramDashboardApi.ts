@@ -98,6 +98,13 @@ export const getVulnerabilityIdentification = (profiles: string[]) => {
     return fetchApiData(`/dashboard/instagram/vulnerability-identification?${params.toString()}`);
 };
 
+export const getTopTermsByProfile = (profiles: string[], days: number = 7) => {
+    const params = new URLSearchParams();
+    profiles.forEach(p => params.append('profiles', p));
+    params.append('days', days.toString());
+    return fetchApiData(`/analytics/top-terms-by-profile?${params.toString()}`);
+};
+
 // --- Aba 4: Radar de Pautas ---
 
 export const getHashtagFeed = (hashtag: string, limit: number = 20) => {

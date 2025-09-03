@@ -16,6 +16,7 @@ import {
   getHeadToHeadEngagement,
   getContentStrategyComparison,
   getVulnerabilityIdentification,
+  getTopTermsByProfile,
 } from "@/services/instagramDashboardApi";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -41,15 +42,11 @@ interface VulnerabilityData {
     caption: string;
 }
 
-// Mock Data para a nuvem de palavras (TODO: Criar endpoint para isso)
-const yourWords = [
-    { text: 'futuro', value: 40 }, { text: 'trabalho', value: 35 },
-    { text: 'cidade', value: 38 }, { text: 'oportunidade', value: 30 },
-];
-const competitorWords = [
-    { text: 'problemas', value: 45 }, { text: 'crise', value: 38 },
-    { text: 'segurança', value: 42 }, { text: 'abandono', value: 30 },
-];
+interface WordCloudData {
+    text: string;
+    value: number;
+}
+
 const wordcloudOptions = {
     rotations: 0,
     fontSizes: [14, 50] as [number, number],
@@ -65,6 +62,7 @@ export default function CompetitionTab() {
   const [profileCategories, setProfileCategories] = useState<string[]>([]);
   const [contentStrategyData, setContentStrategyData] = useState<any[]>([]);
   const [vulnerabilities, setVulnerabilities] = useState<VulnerabilityData[]>([]);
+  const [wordCloudData, setWordCloudData] = useState<{ [profile: string]: WordCloudData[] }>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,10 +70,11 @@ export default function CompetitionTab() {
     const fetchAllData = async () => {
       try {
         setLoading(true);
-        const [engagementRes, strategyRes, vulnerabilityRes] = await Promise.all([
+        const [engagementRes, strategyRes, vulnerabilityRes, wordCloudRes] = await Promise.all([
           getHeadToHeadEngagement(ALL_PROFILES, 7),
           getContentStrategyComparison(ALL_PROFILES),
           getVulnerabilityIdentification(COMPETITOR_PROFILES),
+          getTopTermsByProfile(ALL_PROFILES, 7),
         ]);
 
         // Formatar dados de engajamento
@@ -98,6 +97,7 @@ export default function CompetitionTab() {
         setContentStrategyData(formattedStrategy);
 
         setVulnerabilities(vulnerabilityRes);
+        setWordCloudData(wordCloudRes);
 
       } catch (err) {
         setError("Falha ao carregar os dados de competição. Tente novamente mais tarde.");
@@ -151,15 +151,19 @@ export default function CompetitionTab() {
 
       {/* Nuvem de Palavras Comparativa */}
       <Card>
-        <CardHeader><CardTitle>Suas Pautas (Exemplo)</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Suas Pautas</CardTitle></CardHeader>
         <CardContent className="h-64">
-            <ReactWordcloud words={yourWords} options={wordcloudOptions} />
+          {loading ? <Skeleton className="h-full w-full" /> : (
+            <ReactWordcloud words={wordCloudData[MAIN_PROFILE] || []} options={wordcloudOptions} />
+          )}
         </CardContent>
       </Card>
       <Card>
-        <CardHeader><CardTitle>Pautas do Concorrente (Exemplo)</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Pautas do Principal Concorrente</CardTitle></CardHeader>
         <CardContent className="h-64">
-            <ReactWordcloud words={competitorWords} options={wordcloudOptions} />
+          {loading ? <Skeleton className="h-full w-full" /> : (
+            <ReactWordcloud words={wordCloudData[COMPETITOR_PROFILES[0]] || []} options={wordcloudOptions} />
+          )}
         </CardContent>
       </Card>
 
