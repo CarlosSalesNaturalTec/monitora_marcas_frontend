@@ -15,7 +15,7 @@ import {
 import { ChevronDown } from "lucide-react";
 
 export function Navbar() {
-  const { user, signOut } = useAuth(); // Alterado: usa 'user' em vez de 'userRole'
+  const { user, signOut } = useAuth();
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -23,7 +23,6 @@ export function Navbar() {
     router.push("/login");
   };
 
-  // A Navbar só deve ser renderizada se o usuário existir
   if (!user) {
     return null;
   }
@@ -40,6 +39,26 @@ export function Navbar() {
             <Button asChild variant="ghost">
               <Link href="/analytics">Analytics</Link>
             </Button>
+
+            {/* NOVO MENU INSTAGRAM */}
+            {user.role === 'ADM' && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost">
+                    Instagram
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link href="/instagram/service-accounts">Contas de Serviço</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/instagram/targets">Alvos</Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
