@@ -16,76 +16,79 @@ import {
   getPerformanceByContentType,
   getPostsRanking,
   getTopCommenters,
+  getCommentersInfluence,
+  getSentimentByPost,
 } from "@/services/instagramDashboardApi";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Tipos para os dados da API
-interface EngagementData {
-  labels: string[];
-  likes_series: number[];
-  comments_series: number[];
+// ... (interfaces existentes)
+
+interface SentimentByPost {
+    post: string;
+    Positivo: number;
+    Negativo: number;
+    Neutro: number;
 }
-
-interface ContentTypePerformance {
-  [key: string]: {
-    avg_likes: number;
-    avg_comments: number;
-    post_count: number;
-  };
-}
-
-interface PostRanking {
-  id: string;
-  data: {
-    caption: string;
-    likes_count: number;
-    comments_count: number;
-  };
-}
-
-interface TopCommenter {
-  username: string;
-  comment_count: number;
-}
-
-// Mock Data para o gráfico de influência (TODO: Criar endpoint para isso)
-const commentersInfluence = [
-    { user: 'Militante 1', comments: 50, followers: 150 },
-    { user: 'Militante 2', comments: 45, followers: 200 },
-    { user: 'Cidadão Comum', comments: 5, followers: 300 },
-    { user: 'Influenciador Local', comments: 3, followers: 15000 },
-    { user: 'Jornalista', comments: 2, followers: 8000 },
-];
-
-// TODO: O perfil do usuário deve vir de um contexto ou seletor na UI
-const PROFILE_USERNAME = "nome_parlamentar"; 
 
 export default function PerformanceTab() {
+  // TODO: O perfil do usuário deve vir de um contexto ou seletor na UI
+  const PROFILE_USERNAME = "nome_parlamentar"; 
+
   const [engagementData, setEngagementData] = useState<any[]>([]);
   const [contentTypeData, setContentTypeData] = useState<any[]>([]);
-  const [topPosts, setTopPosts] = useState<PostRanking[]>([]);
-  const [topSupporters, setTopSupporters] = useState<TopCommenter[]>([]);
-  const [topCritics, setTopCritics] = useState<TopCommenter[]>([]);
+  const [topPosts, setTopPosts] = useState<any[]>([]);
+  const [topSupporters, setTopSupporters] = useState<any[]>([]);
+  const [topCritics, setTopCritics] = useState<any[]>([]);
+  const [commentersInfluence, setCommentersInfluence] = useState<any[]>([]);
+  const [sentimentByPost, setSentimentByPost] = useState<SentimentByPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAllData = async () => {
-      try {
-        setLoading(true);
+      setLoading(true);
+      setError(null);
+
+      const promises = [
+        getEngagementEvolution(PROFILE_USERNAME, 30),
+        getPerformanceByContentType(PROFILE_USERNAME),
+        getPostsRanking(PROFILE_USERNAME, 'likes_count', 5),
+        getTopCommenters(PROFILE_USERNAME, 'supporter', 3),
+        getTopCommenters(PROFILE_USERNAME, 'critic', 3),
+        getCommentersInfluence(PROFILE_USERNAME, 50),
+        getSentimentByPost(PROFILE_USERNAME, 10),
+      ];
+      const promiseNames = [
+        'Engagement Evolution',
+        'Performance By Content Type',
+        'Posts Ranking',
+        'Top Supporters',
+        'Top Critics',
+        'Commenters Influence',
+        'Sentiment By Post',
+      ];
+
+      const results = await Promise.allSettled(promises);
+      let hadError = false;
+
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          console.error(`Falha ao carregar ${promiseNames[index]}:`, result.reason);
+          setError(`Falha ao carregar dados de: ${promiseNames[index]}. Verifique o console para mais detalhes.`);
+          hadError = true;
+        }
+      });
+
+      if (!hadError) {
         const [
           engagementRes,
           performanceRes,
           rankingRes,
           supportersRes,
           criticsRes,
-        ] = await Promise.all([
-          getEngagementEvolution(PROFILE_USERNAME, 30),
-          getPerformanceByContentType(PROFILE_USERNAME),
-          getPostsRanking(PROFILE_USERNAME, 'likes_count', 5),
-          getTopCommenters(PROFILE_USERNAME, 'supporter', 3),
-          getTopCommenters(PROFILE_USERNAME, 'critic', 3),
-        ]);
+          influenceRes,
+          sentimentPostRes,
+        ] = results.map(r => (r as PromiseFulfilledResult<any>).value);
 
         // Formatar dados para os gráficos
         const formattedEngagement = engagementRes.labels.map((label: string, index: number) => ({
@@ -95,7 +98,7 @@ export default function PerformanceTab() {
         }));
         setEngagementData(formattedEngagement);
 
-        const formattedPerformance = Object.entries(performanceRes).map(([type, data]) => ({
+        const formattedPerformance = Object.entries(performanceRes).map(([type, data]: [string, any]) => ({
             type: type,
             "Média de Likes": data.avg_likes,
             "Média de Comentários": data.avg_comments,
@@ -105,13 +108,11 @@ export default function PerformanceTab() {
         setTopPosts(rankingRes);
         setTopSupporters(supportersRes);
         setTopCritics(criticsRes);
-
-      } catch (err) {
-        setError("Falha ao carregar os dados de performance. Tente novamente mais tarde.");
-        console.error(err);
-      } finally {
-        setLoading(false);
+        setCommentersInfluence(influenceRes);
+        setSentimentByPost(sentimentPostRes);
       }
+
+      setLoading(false);
     };
 
     fetchAllData();
@@ -158,18 +159,37 @@ export default function PerformanceTab() {
       
       {/* Mapa de Influência dos Comentaristas */}
       <Card>
-        <CardHeader><CardTitle>Mapa de Influência dos Comentaristas (Exemplo)</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Mapa de Influência dos Comentaristas</CardTitle></CardHeader>
         <CardContent>
-            <ScatterChart
-                data={commentersInfluence}
-                category="user"
-                x="comments"
-                y="followers"
-                size="followers"
-                showLegend={false}
-                yAxisLabel="Seguidores"
-                xAxisLabel="Nº de Comentários"
-            />
+            {loading ? <Skeleton className="h-72 w-full" /> : (
+                <ScatterChart
+                    data={commentersInfluence}
+                    category="user"
+                    x="comments"
+                    y="followers"
+                    size="followers"
+                    showLegend={false}
+                    yAxisLabel="Seguidores (Média)"
+                    xAxisLabel="Nº de Comentários"
+                />
+            )}
+        </CardContent>
+      </Card>
+
+      {/* Análise de Sentimento dos Comentários */}
+      <Card className="lg:col-span-2">
+        <CardHeader><CardTitle>Análise de Sentimento por Post</CardTitle></CardHeader>
+        <CardContent>
+            {loading ? <Skeleton className="h-72 w-full" /> : (
+                <BarChart
+                    data={sentimentByPost}
+                    index="post"
+                    categories={["Positivo", "Negativo", "Neutro"]}
+                    colors={["green", "red", "blue"]}
+                    stack={true}
+                    yAxisWidth={100}
+                />
+            )}
         </CardContent>
       </Card>
 

@@ -70,6 +70,14 @@ export const getTopCommenters = (profile: string, type: 'supporter' | 'critic', 
     return fetchApiData(`/dashboard/instagram/top-commenters/${profile}?analysis_type=${type}&limit=${limit}`);
 };
 
+export const getCommentersInfluence = (profile: string, limit: number = 50) => {
+    return fetchApiData(`/dashboard/instagram/commenters-influence/${profile}?limit=${limit}`);
+};
+
+export const getSentimentByPost = (profile: string, limit: number = 10) => {
+    return fetchApiData(`/dashboard/instagram/sentiment-by-post/${profile}?limit=${limit}`);
+};
+
 // --- Aba 3: Inteligência Competitiva ---
 
 export const getHeadToHeadEngagement = (profiles: string[], days: number = 7) => {
