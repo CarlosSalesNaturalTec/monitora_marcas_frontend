@@ -62,6 +62,23 @@ export function Navbar() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+
+            {/* NOVO MENU WHATSAPP */}
+            {user.role === 'ADM' && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost">
+                    WhatsApp
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard/whatsapp">Importações</Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -89,7 +106,7 @@ export function Navbar() {
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/nlp">NLP</Link>
-                </DropdownMenuItem>                
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {user.role === 'ADM' && (
                   <>                   
