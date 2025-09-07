@@ -32,6 +32,8 @@ O frontend é uma aplicação web moderna construída com as seguintes tecnologi
     NEXT_PUBLIC_FIREBASE_APP_ID=...
 
     NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+    NEXT_PUBLIC_WHATSAPP_API_URL=http://127.0.0.1:8000 
+    # Aponta para o mesmo backend, mas pode ser um serviço separado no futuro
     ```
 
 2.  **Instalação de Dependências:**
@@ -58,7 +60,7 @@ O deploy é automatizado usando o Google Cloud Build.
     ```bash
     # Substitua [PROJECT_ID] e os valores das variáveis do Firebase
     gcloud builds submit ./frontend --config ./frontend/cloudbuild.yaml \
-      --substitutions=_NEXT_PUBLIC_FIREBASE_API_KEY="...",_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="..."
+      --substitutions=_NEXT_PUBLIC_FIREBASE_API_KEY="...",_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="...",_NEXT_PUBLIC_API_URL="https://sua-api-backend.run.app",_NEXT_PUBLIC_WHATSAPP_API_URL="https://sua-whatsapp-api.run.app"
 
     gcloud run deploy social-listening-frontend \
       --image gcr.io/[PROJECT_ID]/social-listening-frontend \

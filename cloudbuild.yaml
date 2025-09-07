@@ -18,6 +18,8 @@ steps:
   - 'NEXT_PUBLIC_FIREBASE_APP_ID=${_NEXT_PUBLIC_FIREBASE_APP_ID}'
   - '--build-arg'
   - 'NEXT_PUBLIC_API_URL=${_NEXT_PUBLIC_API_URL}'
+  - '--build-arg'
+  - 'NEXT_PUBLIC_WHATSAPP_API_URL=${_NEXT_PUBLIC_WHATSAPP_API_URL}'
   - '.'
 images:
 - 'gcr.io/${PROJECT_ID}/social-listening-frontend'
