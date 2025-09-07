@@ -80,10 +80,16 @@ export default function HashtagsTab() {
         ]);
 
         // Formatar dados de sentimento
-        const formattedSentiment = sentimentRes.labels.map((label: string, index: number) => ({
+        // Define o tipo do objeto para clareza no TypeScript
+        type SentimentPoint = {
+            date: string;
+            "Sentimento Médio": number | null;
+        };
+
+        const formattedSentiment = sentimentRes.labels.map((label: string, index: number): SentimentPoint => ({
             date: new Date(label).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
             "Sentimento Médio": sentimentRes.series[index],
-        })).filter(item => item["Sentimento Médio"] !== null);
+        })).filter((item: SentimentPoint) => item["Sentimento Médio"] !== null);
         setSentimentData(formattedSentiment);
 
         // Formatar dados de influenciadores

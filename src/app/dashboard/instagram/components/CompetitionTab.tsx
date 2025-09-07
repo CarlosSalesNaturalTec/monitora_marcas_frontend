@@ -92,7 +92,7 @@ export default function CompetitionTab() {
         // Formatar dados de estratégia de conteúdo
         const formattedStrategy = Object.entries(strategyRes).map(([profile, types]) => ({
             name: profile,
-            ...types
+            ...(types || {}) // Garante que types seja um objeto antes do spread
         }));
         setContentStrategyData(formattedStrategy);
 
